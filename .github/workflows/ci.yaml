@@ -23,8 +23,8 @@ jobs:
       - name: Update file hash
         working-directory: ./tests
         run: |
-          checksum=$(sha256sum sqlc-gen-java.wasm | awk '{print $1}')
-          yq e -i ".plugins[0].wasm.sha256 = ${checksum}" sqlc.yaml
+          export checksum=$(sha256sum sqlc-gen-java.wasm | awk '{print $1}')
+          yq -i '.plugins[0].wasm.sha256 = env(checksum)' sqlc.yaml
 
       - name: Setup SQLC
         uses: sqlc-dev/setup-sqlc@v4
