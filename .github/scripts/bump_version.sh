@@ -1,4 +1,4 @@
-set -e
+set -ex
 
 current_version=$(grep -oP 'const PluginVersion = "\K[0-9]+\.[0-9]+\.[0-9]+' internal/core/constants.go)
 
