@@ -7,14 +7,14 @@ A WASM plugin for SQLC allowing the generation of Java code. Currently in develo
  
 ## Configuration Values
 
-| Name                   | Type    | Required | Description                                                                                                                              |
-|------------------------|---------|----------|------------------------------------------------------------------------------------------------------------------------------------------|
-| package                | string  | yes      | The name of the package where the generated files will be located                                                                        |
-| query_parameter_limit  | integer | no       | not yet implemented                                                                                                                      |
-| indent_char            | string  | no       | The character to use to indent the code. Defaults to space `" "`                                                                         |
-| chars_per_indent_level | integer | no       | The number of characters per indent level. Defaults to `4`                                                                               |
-| nullable_annotation    | string  | no       | The full import path for the nullable annotation to use. Defaults to `org.jspecify.annotations.Nullable`. Set to empty string to disable |
-| non_null_annotation    | string  | no       | The full import path for the nonnull annotation to use. Defaults to `org.jspecify.annotations.NonNull`. Set to empty string to disable   |
+| Name                     | Type    | Required | Description                                                                                                                              |
+|--------------------------|---------|----------|------------------------------------------------------------------------------------------------------------------------------------------|
+| `package`                | string  | yes      | The name of the package where the generated files will be located                                                                        |
+| `query_parameter_limit`  | integer | no       | not yet implemented                                                                                                                      |
+| `indent_char`            | string  | no       | The character to use to indent the code. Defaults to space `" "`                                                                         |
+| `chars_per_indent_level` | integer | no       | The number of characters per indent level. Defaults to `4`                                                                               |
+| `nullable_annotation`    | string  | no       | The full import path for the nullable annotation to use. Defaults to `org.jspecify.annotations.Nullable`. Set to empty string to disable |
+| `non_null_annotation`    | string  | no       | The full import path for the nonnull annotation to use. Defaults to `org.jspecify.annotations.NonNull`. Set to empty string to disable   |
 
 ## Usage
 
