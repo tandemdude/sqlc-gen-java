@@ -131,7 +131,7 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 			body.WriteString("\n")
 			body.WriteIndentedString(1, "public record "+returnType+"(\n")
 			for i, ret := range q.Returns {
-				jt := ret.JavaType
+				jt := ret.JavaType.Type
 				if strings.Contains(jt, ".") {
 					parts := strings.Split(jt, ".")
 
@@ -139,8 +139,13 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 					jt = parts[len(parts)-1]
 				}
 
+				if ret.JavaType.IsList {
+					imports = append(imports, "java.util.List", "java.util.Arrays")
+					jt = "List<" + jt + ">"
+				}
+
 				annotation := nonNullAnnotation
-				if ret.Nullable {
+				if ret.JavaType.Nullable {
 					annotation = nullableAnnotation
 				}
 
@@ -181,7 +186,7 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 			body.WriteString("\n")
 
 			for i, arg := range q.Args {
-				jt := arg.JavaType
+				jt := arg.JavaType.Type
 				if strings.Contains(jt, ".") {
 					parts := strings.Split(jt, ".")
 
@@ -189,8 +194,13 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 					jt = parts[len(parts)-1]
 				}
 
+				if arg.JavaType.IsList {
+					imports = append(imports, "java.util.List")
+					jt = "List<" + jt + ">"
+				}
+
 				annotation := nonNullAnnotation
-				if arg.Nullable {
+				if arg.JavaType.Nullable {
 					annotation = nullableAnnotation
 				}
 

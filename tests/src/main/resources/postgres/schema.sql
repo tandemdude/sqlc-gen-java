@@ -27,7 +27,7 @@ CREATE TABLE messages (
     chat_id    INTEGER NOT NULL REFERENCES chats(chat_id),
     user_id    UUID NOT NULL REFERENCES users(user_id),
     content    TEXT NOT NULL,
---     attachments TEXT[], -- Array column for storing attachment URLs
+    attachments TEXT[], -- Array column for storing attachment URLs
     sent_at_time    TIME DEFAULT NOW()::time without time zone,
     sent_at_date    DATE DEFAULT NOW()::date
 );

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/iancoleman/strcase"
 	"github.com/sqlc-dev/plugin-sdk-go/plugin"
+	"github.com/sqlc-dev/plugin-sdk-go/sdk"
 	"github.com/tandemdude/sqlc-gen-java/internal/codegen"
 	"github.com/tandemdude/sqlc-gen-java/internal/core"
 	"github.com/tandemdude/sqlc-gen-java/internal/sql_types"
@@ -84,11 +85,19 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 				return nil, err
 			}
 
+			if arg.Column.ArrayDims > 1 {
+				return nil, fmt.Errorf("multidimensional arrays are not supported, store JSON instead")
+			}
+
 			args = append(args, core.QueryArg{
-				Number:   int(arg.Number),
-				Name:     arg.Column.Name,
-				Nullable: arg.Column.NotNull == false,
-				JavaType: javaType,
+				Number: int(arg.Number),
+				Name:   arg.Column.Name,
+				JavaType: core.JavaType{
+					SqlType:  sdk.DataType(arg.Column.Type),
+					Type:     javaType,
+					IsList:   arg.Column.ArrayDims > 0, // TODO check this will always be present
+					Nullable: !arg.Column.NotNull,
+				},
 			})
 		}
 
@@ -100,10 +109,18 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 				return nil, err
 			}
 
+			if ret.ArrayDims > 1 {
+				return nil, fmt.Errorf("multidimensional arrays are not supported, store JSON instead")
+			}
+
 			returns = append(returns, core.QueryReturn{
-				Name:     ret.Name,
-				Nullable: ret.NotNull == false,
-				JavaType: javaType,
+				Name: ret.Name,
+				JavaType: core.JavaType{
+					SqlType:  sdk.DataType(ret.Type),
+					Type:     javaType,
+					IsList:   ret.ArrayDims > 0, // TODO check this will always be present
+					Nullable: !ret.NotNull,
+				},
 			})
 		}
 

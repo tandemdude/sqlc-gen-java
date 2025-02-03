@@ -36,18 +36,31 @@ func QueryCommandFor(rawCommand string) (QueryCommand, error) {
 	}
 }
 
+type JavaType struct {
+	SqlType  string
+	Type     string
+	IsList   bool
+	Nullable bool
+}
+
 type QueryArg struct {
 	Number   int
 	Name     string
-	Nullable bool
-	JavaType string
+	JavaType JavaType
 }
 
-// TODO - array types, enum types
+// TODO - enum types
 var literalBindTypes = []string{"Long", "Short", "String", "Boolean", "Float", "Double", "BigDecimal"}
 
 func (q QueryArg) BindStmt() string {
-	typeOnly := q.JavaType[strings.LastIndex(q.JavaType, ".")+1:]
+	typeOnly := q.JavaType.Type[strings.LastIndex(q.JavaType.Type, ".")+1:]
+
+	if q.JavaType.IsList {
+		if q.JavaType.Nullable {
+			return fmt.Sprintf("stmt.setArray(%d, %s == null ? null : conn.createArrayOf(\"%s\", %s.toArray()));", q.Number, q.Name, q.JavaType.SqlType, q.Name)
+		}
+		return fmt.Sprintf("stmt.setArray(%d, conn.createArrayOf(\"%s\", %s.toArray()));", q.Number, q.JavaType.SqlType, q.Name)
+	}
 
 	if slices.Contains(literalBindTypes, typeOnly) {
 		return fmt.Sprintf("stmt.set%s(%d, %s);", typeOnly, q.Number, q.Name)
@@ -58,18 +71,20 @@ func (q QueryArg) BindStmt() string {
 
 type QueryReturn struct {
 	Name     string
-	Nullable bool
-	JavaType string
+	JavaType JavaType
 }
 
 func (q QueryReturn) ResultStmt(number int) string {
-	typeOnly := q.JavaType[strings.LastIndex(q.JavaType, ".")+1:]
+	typeOnly := q.JavaType.Type[strings.LastIndex(q.JavaType.Type, ".")+1:]
+
+	if q.JavaType.IsList {
+		return fmt.Sprintf("Arrays.asList((%s[]) results.getArray(%d).getArray())", typeOnly, number)
+	}
 
 	if slices.Contains(literalBindTypes, typeOnly) {
 		return fmt.Sprintf("results.get%s(%d)", typeOnly, number)
 	}
 
-	// TODO - check correct!
 	return fmt.Sprintf("results.getObject(%d, %s.class)", number, typeOnly)
 }
 
