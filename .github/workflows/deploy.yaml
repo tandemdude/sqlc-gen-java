@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Update version
-        run: bash .github/scripts/bump_version.sh
+        run: bash .github/scripts/bump_version.sh ${{ inputs.version_type }}
 
       - name: Commit Changes
         uses: stefanzweifel/git-auto-commit-action@v5
