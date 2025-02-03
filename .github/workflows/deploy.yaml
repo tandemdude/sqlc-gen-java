@@ -12,6 +12,8 @@ on:
           - minor
           - patch
 
+permissions: write-all
+
 jobs:
   deploy:
     name: Deploy
