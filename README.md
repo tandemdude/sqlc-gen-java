@@ -1,6 +1,6 @@
 # SQLC Gen Java
 
-A WASM plugin for SQLC allowing the generation of Java code. Currently in development - not production ready.
+A WASM plugin for SQLC allowing the generation of Java code.
 
 > [!NOTE]
 > Only the `PostgreSQL` engine is supported currently. Support for `MySQL` is planned.
@@ -48,3 +48,16 @@ A file `sqlc-gen-java.wasm` will be created in the repository root - you can the
 and reference the plugin in your `sqlc.yaml` file using `file://sqlc-gen-java.wasm` as the plugin URL.
 
 You should ensure that the `sha256` value in your `sqlc.yaml` is correct for this new plugin file.
+
+## Planned Features
+
+- `sqlc.embed()` support
+- `MySQL` support
+- `SQLite` support
+- Improved parameter naming
+- First-class support for `bytes`, `blob`, `bytea` datatypes
+- Simplified return values for single-column queries
+
+**Tentative:**
+- r2dbc support
+- Support for PostgreSQL enum types
