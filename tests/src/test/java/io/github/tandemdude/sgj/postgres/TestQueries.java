@@ -20,7 +20,7 @@ public class TestQueries {
     @Test
     @DisplayName("GetUser returns empty optional when no records found")
     public void getUserReturnsEmptyOptionalNoRecordsFound() throws Exception {
-        try (var conn = DriverManager.getConnection(postgres.getJdbcUrl())) {
+        try (var conn = DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())) {
             var q = new Queries(conn);
 
             assertThat(q.getUser(UUID.randomUUID())).isEmpty();
