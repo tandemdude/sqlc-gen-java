@@ -41,6 +41,10 @@ jobs:
           java-version: '17'
           distribution: 'adopt'
 
+      - name: Resolve dependencies
+        working-directory: ./tests
+        run: ./mvnw dependency:resolve -q
+
       - name: Run tests
         working-directory: ./tests
         run: ./mvnw test
