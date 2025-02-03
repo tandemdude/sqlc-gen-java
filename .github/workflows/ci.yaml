@@ -1,0 +1,30 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  test-java:
+    name: Test Java
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v2
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+
+      - name: Setup SQLC
+        uses: sqlc-dev/setup-sqlc@v4
+        with:
+          sqlc-version: '1.28.0'
+
+      - name: Generate code
+        working-directory: ./tests
+        run: sqlc generate
+
+      - name: Run tests
+        run: mvn test

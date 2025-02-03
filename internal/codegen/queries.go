@@ -144,7 +144,7 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 					annotation = nullableAnnotation
 				}
 
-				body.WriteIndentedString(2, annotation+ret.JavaType+" "+ret.Name)
+				body.WriteIndentedString(2, annotation+jt+" "+ret.Name)
 				if i != len(q.Returns)-1 {
 					body.WriteString(",\n")
 				}
@@ -194,7 +194,7 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 					annotation = nullableAnnotation
 				}
 
-				body.WriteIndentedString(2, annotation+arg.JavaType+" "+arg.Name)
+				body.WriteIndentedString(2, annotation+jt+" "+arg.Name)
 				if i != len(q.Args)-1 {
 					body.WriteString(",\n")
 				}

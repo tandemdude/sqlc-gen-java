@@ -1,0 +1,15 @@
+version: '2'
+plugins:
+  - name: java
+    wasm:
+      url: file://sqlc-gen-java.wasm
+      sha256: 8cbaf60688121152cac88287a368251dde08712382b62cc75bd5089e202dbb03
+sql:
+  - schema: src/main/resources/postgres/schema.sql
+    queries: src/main/resources/postgres/queries.sql
+    engine: postgresql
+    codegen:
+      - out: src/main/java/io/github/tandemdude/sgj/postgres
+        plugin: java
+        options:
+          package: io.github.tandemdude.sgj.postgres
