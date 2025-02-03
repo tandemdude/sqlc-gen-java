@@ -11,11 +11,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Java
-        uses: actions/setup-java@v2
+      - name: Setup Go
+        uses: actions/setup-go@v5
         with:
-          java-version: '17'
-          distribution: 'adopt'
+          go-version-file: './go.mod'
+
+      - name: Build plugin
+        working-directory: plugin
+        run: GOOS=wasip1 GOARCH=wasm go build -o ../tests/sqlc-gen-java.wasm
+
+      - name: Update file hash
+        working-directory: ./tests
+        run: |
+          checksum=$(sha256sum sqlc-gen-java.wasm | awk '{print $1}')
+          yq e -i ".plugins[0].wasm.sha256 = ${checksum}" sqlc.yaml
 
       - name: Setup SQLC
         uses: sqlc-dev/setup-sqlc@v4
@@ -26,5 +35,12 @@ jobs:
         working-directory: ./tests
         run: sqlc generate
 
+      - name: Setup Java
+        uses: actions/setup-java@v2
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+
       - name: Run tests
-        run: mvn test
+        working-directory: ./tests
+        run: ./mvnw test
