@@ -10,14 +10,14 @@ fi
 IFS='.' read -r MAJOR MINOR PATCH <<< "$current_version"
 
 if [[ "$1" == "major" ]]; then
-  ((MAJOR++))
+  ((++MAJOR))
   MINOR=0
   PATCH=0
 elif [[ "$1" == "minor" ]]; then
-  ((MINOR++))
+  ((++MINOR))
   PATCH=0
 elif [[ "$1" == "patch" ]]; then
-  ((PATCH++))
+  ((++PATCH))
 else
   echo "Error: Invalid version type. Use 'major', 'minor', or 'patch'."
   exit 1
