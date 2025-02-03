@@ -43,7 +43,7 @@ func completeMethodBody(sb *IndentStringBuilder, q core.Query) {
 	switch q.Command {
 	case core.One:
 		sb.WriteIndentedString(2, "if (!results.next()) {\n")
-		sb.WriteIndentedString(3, "return Optional.empty()\n")
+		sb.WriteIndentedString(3, "return Optional.empty();\n")
 		sb.WriteIndentedString(2, "}\n\n")
 		createResultRecord(sb, 2, q)
 		sb.WriteIndentedString(2, "if (results.next()) {\n")
@@ -111,10 +111,8 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 		body.WriteString("\n")
 
 		// write the static attribute containing the query string
-		body.WriteIndentedString(
-			1,
-			"private static final String "+q.MethodName+" = \"\"\"-- name: "+q.RawQueryName+" "+q.RawCommand+"\n",
-		)
+		body.WriteIndentedString(1, "private static final String "+q.MethodName+" = \"\"\"\n")
+		body.WriteIndentedString(2, "-- name: "+q.RawQueryName+" "+q.RawCommand+"\n")
 		// for each line in the query, ensure it is indented correctly
 		for _, part := range strings.Split(q.Text, "\n") {
 			if part == "" {
@@ -204,9 +202,9 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 				methodBody.WriteIndentedString(2, arg.BindStmt()+"\n")
 			}
 			body.WriteString("\n")
-			body.WriteIndentedString(1, ") {\n")
+			body.WriteIndentedString(1, ") throws SQLException {\n")
 		} else {
-			body.WriteString(") {\n")
+			body.WriteString(") throws SQLException {\n")
 		}
 
 		completeMethodBody(methodBody, q)
