@@ -51,4 +51,29 @@ public class TestQueries {
             assertThat(found.get().email()).isEqualTo("bar");
         }
     }
+
+    @Test
+    @DisplayName("ListUsers returns empty list when no records found")
+    public void listUsersReturnsEmptyListNoRecordsFound() throws Exception {
+        try (var conn = getConn()) {
+            var q = new Queries(conn);
+
+            assertThat(q.listUsers()).isEmpty();
+        }
+    }
+
+    @Test
+    @DisplayName("ListUsers returns populated list when records found")
+    public void listUsersReturnsPopulatedListRecordsFound() throws Exception {
+        try (var conn = getConn()) {
+            var q = new Queries(conn);
+
+            q.createUser(UUID.randomUUID(), "foo", "bar");
+            q.createUser(UUID.randomUUID(), "baz", "bork");
+
+            var found = q.listUsers();
+            assertThat(found).isNotEmpty();
+            assertThat(found.size()).isEqualTo(2);
+        }
+    }
 }
