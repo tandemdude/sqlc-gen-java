@@ -20,3 +20,13 @@ updates:
       - tandemdude
     rebase-strategy: auto
     target-branch: master
+  - package-ecosystem: maven
+    directory: /tests/
+    schedule:
+      interval: daily
+    assignees:
+      - tandemdude
+    reviewers:
+      - tandemdude
+    rebase-strategy: auto
+    target-branch: master
