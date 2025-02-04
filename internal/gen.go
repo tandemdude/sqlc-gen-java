@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/iancoleman/strcase"
+	"github.com/jinzhu/inflection"
 	"github.com/sqlc-dev/plugin-sdk-go/plugin"
 	"github.com/sqlc-dev/plugin-sdk-go/sdk"
 	"github.com/tandemdude/sqlc-gen-java/internal/codegen"
@@ -105,9 +106,13 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 		returns := make([]core.QueryReturn, 0)
 		for _, ret := range query.Columns {
 			var javaType string
+			var name string
+
 			if ret.EmbedTable != nil {
 				// sqlc.embed
-				name := ret.EmbedTable.Name
+				// TODO: Make this customizable
+				// TODO: Account for a lot of manual fixes needed with AddSingular: https://github.com/jinzhu/inflection/issues
+				name = inflection.Singular(ret.EmbedTable.Name)
 
 				if _, ok := models[name]; !ok {
 					list := make([]core.QueryReturn, 0)
@@ -149,18 +154,19 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 				javaType = "Models." + strcase.ToCamel(name)
 			} else {
 				// normal types
+				name = ret.Name
 				javaType, err = typeConversionFunc(ret.Type)
 				if err != nil {
 					return nil, err
 				}
-
 			}
+
 			if ret.ArrayDims > 1 {
 				return nil, fmt.Errorf("multidimensional arrays are not supported, store JSON instead")
 			}
 
 			returns = append(returns, core.QueryReturn{
-				Name: ret.Name,
+				Name: name,
 				JavaType: core.JavaType{
 					SqlType:  sdk.DataType(ret.Type),
 					Type:     javaType,
