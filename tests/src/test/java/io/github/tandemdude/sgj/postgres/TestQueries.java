@@ -9,6 +9,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -74,6 +75,21 @@ public class TestQueries {
             var found = q.listUsers();
             assertThat(found).isNotEmpty();
             assertThat(found.size()).isEqualTo(2);
+        }
+    }
+
+    @Test
+    @DisplayName("CreateMessage processes input list correctly")
+    public void createMessageProcessesInputListCorrectly() throws Exception {
+        try (var conn = getConn()) {
+            var q = new Queries(conn);
+
+            var created = q.createMessage(1, UUID.randomUUID(), "foo", List.of("bar", "baz", "bork"));
+            assertThat(created).isPresent();
+
+            var found = q.getMessage(created.get().message_id());
+            assertThat(found).isPresent();
+            assertThat(found.get().attachments()).containsExactly("bar", "baz", "bork");
         }
     }
 }

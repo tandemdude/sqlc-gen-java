@@ -10,6 +10,7 @@ SELECT * FROM users;
 -- name: GetMessage :one
 SELECT * FROM messages WHERE message_id = $1;
 
--- name: CreateMessage :exec
+-- name: CreateMessage :one
 INSERT INTO messages(chat_id, user_id, content, attachments)
-VALUES ($1, $2, $3, $4);
+VALUES ($1, $2, $3, $4)
+RETURNING message_id;
