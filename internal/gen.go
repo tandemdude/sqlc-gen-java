@@ -4,16 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"slices"
+	"strconv"
+	"strings"
+
 	"github.com/iancoleman/strcase"
 	"github.com/sqlc-dev/plugin-sdk-go/plugin"
 	"github.com/sqlc-dev/plugin-sdk-go/sdk"
 	"github.com/tandemdude/sqlc-gen-java/internal/codegen"
 	"github.com/tandemdude/sqlc-gen-java/internal/core"
 	"github.com/tandemdude/sqlc-gen-java/internal/sql_types"
-	"regexp"
-	"slices"
-	"strconv"
-	"strings"
 )
 
 var (
@@ -42,8 +43,6 @@ func fixQueryPlaceholders(engine, query string) (string, error) {
 	return newQuery, nil
 }
 
-// TODO - consider sqlc.embed support
-
 func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.GenerateResponse, error) {
 	conf := core.Config{
 		IndentChar:          defaultIndentChar,
@@ -66,6 +65,7 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 	}
 
 	// parse the incoming generate request into our Queries type
+	models := make(map[string][]core.QueryReturn)
 	var queries core.Queries = make(map[string][]core.Query)
 	for _, query := range req.Queries {
 		if _, ok := queries[query.Filename]; !ok {
@@ -95,7 +95,7 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 				JavaType: core.JavaType{
 					SqlType:  sdk.DataType(arg.Column.Type),
 					Type:     javaType,
-					IsList:   arg.Column.ArrayDims > 0, // TODO check this will always be present
+					IsList:   arg.Column.IsArray, // TODO check this will always be present
 					Nullable: !arg.Column.NotNull,
 				},
 			})
@@ -104,11 +104,57 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 		// TODO - check for array types? enum types? other specialness?
 		returns := make([]core.QueryReturn, 0)
 		for _, ret := range query.Columns {
-			javaType, err := typeConversionFunc(ret.Type)
-			if err != nil {
-				return nil, err
-			}
+			var javaType string
+			if ret.EmbedTable.Name != "" {
+				// sqlc.embed
+				name := ret.EmbedTable.Name
 
+				if _, ok := models[name]; !ok {
+					list := make([]core.QueryReturn, 0)
+
+					for _, s := range req.Catalog.Schemas {
+						for _, t := range s.Tables {
+							if t.Rel.Name != ret.EmbedTable.Name {
+								continue
+							}
+
+							for _, c := range t.Columns {
+								// TODO: deduplicate code
+								colJavaType, err := typeConversionFunc(c.Type)
+								if err != nil {
+									return nil, err
+								}
+
+								if c.ArrayDims > 1 {
+									return nil, fmt.Errorf("multidimensional arrays are not supported, store JSON instead")
+								}
+
+								list = append(list, core.QueryReturn{
+									Name: c.Name,
+									JavaType: core.JavaType{
+										SqlType:  sdk.DataType(c.Type),
+										Type:     colJavaType,
+										IsList:   c.IsArray,
+										Nullable: !c.NotNull,
+									},
+								})
+							}
+						}
+					}
+
+					models[name] = list
+				}
+
+				// TODO: Find cleaner way to do this
+				javaType = "Models." + strcase.ToCamel(name)
+			} else {
+				// normal types
+				javaType, err = typeConversionFunc(ret.Type)
+				if err != nil {
+					return nil, err
+				}
+
+			}
 			if ret.ArrayDims > 1 {
 				return nil, fmt.Errorf("multidimensional arrays are not supported, store JSON instead")
 			}
@@ -118,7 +164,7 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 				JavaType: core.JavaType{
 					SqlType:  sdk.DataType(ret.Type),
 					Type:     javaType,
-					IsList:   ret.ArrayDims > 0, // TODO check this will always be present
+					IsList:   ret.IsArray,
 					Nullable: !ret.NotNull,
 				},
 			})
@@ -149,6 +195,17 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 
 		// build the queries file contents
 		fileName, fileContents, err := codegen.BuildQueriesFile(conf, file, queries[file])
+		if err != nil {
+			return nil, err
+		}
+		outputFiles = append(outputFiles, &plugin.File{
+			Name:     fileName,
+			Contents: fileContents,
+		})
+	}
+
+	if len(models) > 0 {
+		fileName, fileContents, err := codegen.BuildModelsFile(conf, models)
 		if err != nil {
 			return nil, err
 		}

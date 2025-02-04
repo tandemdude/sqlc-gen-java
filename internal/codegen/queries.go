@@ -3,10 +3,11 @@ package codegen
 import (
 	"errors"
 	"fmt"
-	"github.com/iancoleman/strcase"
-	"github.com/tandemdude/sqlc-gen-java/internal/core"
 	"slices"
 	"strings"
+
+	"github.com/iancoleman/strcase"
+	"github.com/tandemdude/sqlc-gen-java/internal/core"
 )
 
 func resultRecordName(q core.Query) string {
@@ -129,7 +130,7 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 		}
 		body.WriteIndentedString(2, "\"\"\";\n")
 
-		// write the output record class - TODO figure out if the output is an entire table and if so use a shared model
+		// write the output record class
 		var returnType string
 		if len(q.Returns) > 1 {
 			returnType = resultRecordName(q)
@@ -155,7 +156,7 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 					annotation = nullableAnnotation
 				}
 
-				body.WriteIndentedString(2, annotation+jt+" "+ret.Name)
+				body.WriteIndentedString(2, annotation+jt+" "+strcase.ToLowerCamel(ret.Name))
 				if i != len(q.Returns)-1 {
 					body.WriteString(",\n")
 				}
