@@ -48,7 +48,7 @@ public class TestQueries {
 
             var found = q.getUser(uid);
             assertThat(found).isPresent();
-            assertThat(found.get().user_id()).isEqualTo(uid);
+            assertThat(found.get().userId()).isEqualTo(uid);
             assertThat(found.get().username()).isEqualTo("foo");
             assertThat(found.get().email()).isEqualTo("bar");
         }
