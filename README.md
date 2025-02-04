@@ -56,8 +56,8 @@ You should ensure that the `sha256` value in your `sqlc.yaml` is correct for thi
 - `SQLite` support
 - Improved parameter naming
 - First-class support for `bytes`, `blob`, `bytea` datatypes
-- Simplified return values for single-column queries
 
 **Tentative:**
 - r2dbc support
 - Support for PostgreSQL enum types
+- copyfrom support where possible [ref](https://www.baeldung.com/jdbc-batch-processing)

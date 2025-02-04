@@ -103,7 +103,7 @@ public class TestQueries {
             var created = q.createMessage(1, UUID.randomUUID(), "foo", List.of("bar", "baz", "bork"));
             assertThat(created).isPresent();
 
-            var found = q.getMessage(created.get().message_id());
+            var found = q.getMessage(created.get());
             assertThat(found).isPresent();
             assertThat(found.get().attachments()).containsExactly("bar", "baz", "bork");
         }

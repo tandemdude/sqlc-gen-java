@@ -3,7 +3,7 @@ plugins:
   - name: java
     wasm:
       url: file://sqlc-gen-java.wasm
-      sha256: a8a2028aa1fb7c6fed6ae5dc19e10d876448fd2766a916b4a208d7d11da91f2f
+      sha256: b81971e01687b14e8732973c8424c72b81b354b95bf526b58b46ab9213c1364e
 sql:
   - schema: src/main/resources/postgres/schema.sql
     queries: src/main/resources/postgres/queries.sql

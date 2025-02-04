@@ -14,6 +14,12 @@ func resultRecordName(q core.Query) string {
 }
 
 func createResultRecord(sb *IndentStringBuilder, indentLevel int, q core.Query) {
+	if len(q.Returns) == 1 {
+		// set ret to the item directly instead of wrapping it in the result record
+		sb.WriteIndentedString(indentLevel, "var ret = "+q.Returns[0].ResultStmt(1)+";\n")
+		return
+	}
+
 	recordName := resultRecordName(q)
 
 	sb.WriteIndentedString(indentLevel, "var ret = new "+recordName+"(\n")
@@ -125,7 +131,7 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 
 		// write the output record class - TODO figure out if the output is an entire table and if so use a shared model
 		var returnType string
-		if len(q.Returns) > 0 {
+		if len(q.Returns) > 1 {
 			returnType = resultRecordName(q)
 
 			body.WriteString("\n")
@@ -156,6 +162,24 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 			}
 			body.WriteString("\n")
 			body.WriteIndentedString(1, ") {}\n")
+		} else if len(q.Returns) == 1 {
+			// the query only outputs a single value, we don't need to wrap it in an xxRow record class
+			ret := q.Returns[0]
+
+			jt := ret.JavaType.Type
+			if strings.Contains(jt, ".") {
+				parts := strings.Split(jt, ".")
+
+				imports = append(imports, jt)
+				jt = parts[len(parts)-1]
+			}
+
+			if ret.JavaType.IsList {
+				imports = append(imports, "java.util.List", "java.util.Arrays")
+				jt = "List<" + jt + ">"
+			}
+
+			returnType = jt
 		}
 
 		// figure out what the return type of the method should be
