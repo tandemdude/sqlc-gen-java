@@ -105,7 +105,7 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 		returns := make([]core.QueryReturn, 0)
 		for _, ret := range query.Columns {
 			var javaType string
-			if ret.EmbedTable.Name != "" {
+			if ret.EmbedTable != nil {
 				// sqlc.embed
 				name := ret.EmbedTable.Name
 
