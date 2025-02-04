@@ -12,7 +12,7 @@ SELECT * FROM users;
 
 -- name: CreateToken :exec
 INSERT INTO tokens(user_id, token, expiry)
-VALUES ($1, $2, $3, $4)
+VALUES ($1, $2, $3)
 RETURNING token_id;
 
 -- name: GetUserAndToken :one
