@@ -4,6 +4,9 @@ INSERT INTO users(user_id, username, email) VALUES ($1, $2, $3);
 -- name: GetUser :one
 SELECT * FROM users WHERE user_id = $1;
 
+-- name: GetUserDup :one
+SELECT * FROM users WHERE user_id IS NOT NULL;
+
 -- name: ListUsers :many
 SELECT * FROM users;
 

@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Testcontainers
 public class TestQueries {
@@ -75,6 +76,21 @@ public class TestQueries {
             var found = q.listUsers();
             assertThat(found).isNotEmpty();
             assertThat(found.size()).isEqualTo(2);
+        }
+    }
+
+    @Test
+    @DisplayName("GetUserDup throws error when multiple records returned")
+    public void getUserDupReturnsErrorWhenMultipleRecordsReturned() throws Exception {
+        try (var conn = getConn()) {
+            var q = new Queries(conn);
+
+            q.createUser(UUID.randomUUID(), "foo", "bar");
+            q.createUser(UUID.randomUUID(), "baz", "bork");
+
+            assertThatThrownBy(q::getUserDup)
+                .isInstanceOf(SQLException.class)
+                .hasMessageStartingWith("expected one row in result set");
         }
     }
 
