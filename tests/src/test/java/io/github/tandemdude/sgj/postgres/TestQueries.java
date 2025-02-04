@@ -108,4 +108,25 @@ public class TestQueries {
             assertThat(found.get().attachments()).containsExactly("bar", "baz", "bork");
         }
     }
+
+    @Test
+    @DisplayName("GetUserAndToken returns embeded objects")
+    public void getUserAndTokenReturnsEmbededObjects() throws Exception {
+        try (var conn = getConn()) {
+            // given
+            var q = new Queries(conn);
+
+            var userUid = UUID.randomUUID();
+            q.createUser(userUid, "foo", "bar");
+            q.createToken(userUid, "token", LocalDate.now());
+
+            // when
+            var userAndToken = q.getUserAndToken(userUid);
+
+            // then
+            assertThat(userAndToken).isPresent();
+            assertThat(userAndToken.get().userId().username()).isEqualTo("foo");
+            assertThat(userAndToken.get().token().userId()).isEqualTo(userUid);
+        }
+    }
 }
