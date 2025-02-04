@@ -151,10 +151,10 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 				}
 
 				// TODO: Find cleaner way to do this
-				javaType = "Models." + strcase.ToCamel(name)
+				javaType = conf.Package + ".Models." + strcase.ToCamel(name)
 			} else {
 				// normal types
-				name = ret.Name
+				name = strcase.ToCamel(ret.Name)
 				javaType, err = typeConversionFunc(ret.Type)
 				if err != nil {
 					return nil, err

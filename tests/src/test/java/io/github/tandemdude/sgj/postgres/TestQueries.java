@@ -9,6 +9,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -118,14 +119,14 @@ public class TestQueries {
 
             var userUid = UUID.randomUUID();
             q.createUser(userUid, "foo", "bar");
-            q.createToken(userUid, "token", LocalDate.now());
+            q.createToken(userUid, "token", LocalDateTime.now());
 
             // when
             var userAndToken = q.getUserAndToken(userUid);
 
             // then
             assertThat(userAndToken).isPresent();
-            assertThat(userAndToken.get().userId().username()).isEqualTo("foo");
+            assertThat(userAndToken.get().user().username()).isEqualTo("foo");
             assertThat(userAndToken.get().token().userId()).isEqualTo(userUid);
         }
     }
