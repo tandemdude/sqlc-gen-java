@@ -1,13 +1,9 @@
 package codegen
 
 import (
-	"fmt"
 	"github.com/tandemdude/sqlc-gen-java/internal/core"
 	"os"
-	"slices"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 )
 
 type IndentStringBuilder struct {
@@ -36,29 +32,4 @@ func (b *IndentStringBuilder) writeSqlcHeader() {
 	b.WriteString("// versions:\n")
 	b.WriteString("//   sqlc " + sqlcVersion + "\n")
 	b.WriteString("//   sqlc-gen-java " + core.PluginVersion + "\n")
-}
-
-// resolveImportAndType extracts the import required, and type representation of the given java type.
-func resolveImportAndType(typ string) (string, string, error) {
-	if !strings.Contains(typ, ".") {
-		return "", typ, nil
-	}
-
-	parts := strings.Split(typ, ".")
-	capitalIdx := slices.IndexFunc(parts, func(s string) bool {
-		r, _ := utf8.DecodeRuneInString(s)
-		return unicode.IsUpper(r)
-	})
-
-	if capitalIdx == -1 {
-		// fatal error, this should never happen
-		return "", "", fmt.Errorf("failed resolving type and import for %s", typ)
-	}
-
-	if capitalIdx == 0 {
-		// special case - nested class in same package, no import required
-		return "", strings.Join(parts, "."), nil
-	}
-	// build the import and the type name from the resolved outer class name
-	return strings.Join(parts[:capitalIdx+1], "."), strings.Join(parts[capitalIdx:], "."), nil
 }

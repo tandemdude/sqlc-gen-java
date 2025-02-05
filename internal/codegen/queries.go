@@ -138,7 +138,7 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 			body.WriteString("\n")
 			body.WriteIndentedString(1, "public record "+returnType+"(\n")
 			for i, ret := range q.Returns {
-				imp, jt, err := resolveImportAndType(ret.JavaType.Type)
+				imp, jt, err := core.ResolveImportAndType(ret.JavaType.Type)
 				if err != nil {
 					return "", nil, err
 				}
@@ -165,7 +165,7 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 			// the query only outputs a single value, we don't need to wrap it in an xxRow record class
 			ret := q.Returns[0]
 
-			imp, jt, err := resolveImportAndType(ret.JavaType.Type)
+			imp, jt, err := core.ResolveImportAndType(ret.JavaType.Type)
 			if err != nil {
 				return "", nil, err
 			}
@@ -207,7 +207,7 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 			body.WriteString("\n")
 
 			for i, arg := range q.Args {
-				imp, jt, err := resolveImportAndType(arg.JavaType.Type)
+				imp, jt, err := core.ResolveImportAndType(arg.JavaType.Type)
 				if err != nil {
 					return "", nil, err
 				}
