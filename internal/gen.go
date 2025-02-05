@@ -80,6 +80,10 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 		}
 	}
 
+	if conf.Package == "" {
+		return nil, fmt.Errorf("'package' is a required configuration option")
+	}
+
 	var typeConversionFunc sql_types.TypeConversionFunc
 	switch req.Settings.Engine {
 	case "postgresql":
