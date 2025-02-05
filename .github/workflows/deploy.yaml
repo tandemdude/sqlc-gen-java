@@ -50,7 +50,7 @@ jobs:
       - name: Generate release description
         run: |
           export checksum=$(sha256sum sqlc-gen-java.wasm | awk '{print $1}')
-          export download_url="https://github.com/tandemdude/releases/download/${{ steps.update-version.outputs.VERSION }}/sqlc-gen-java.wasm"
+          export download_url="https://github.com/tandemdude/sqlc-gen-java/releases/download/${{ steps.update-version.outputs.VERSION }}/sqlc-gen-java.wasm"
           
           yq -i '.plugins[0].wasm.url = env(download_url)' .github/release_output_template.yaml
           yq -i '.plugins[0].wasm.sha256 = env(checksum)' .github/release_output_template.yaml
