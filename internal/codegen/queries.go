@@ -100,7 +100,7 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 	}
 
 	header := NewIndentStringBuilder(config.IndentChar, config.CharsPerIndentLevel)
-	writeSqlcHeader(header)
+	header.writeSqlcHeader()
 	header.WriteString("\n")
 	header.WriteString("package " + config.Package + ";\n")
 	header.WriteString("\n")
@@ -138,13 +138,11 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 			body.WriteString("\n")
 			body.WriteIndentedString(1, "public record "+returnType+"(\n")
 			for i, ret := range q.Returns {
-				jt := ret.JavaType.Type
-				if strings.Contains(jt, ".") {
-					parts := strings.Split(jt, ".")
-
-					imports = append(imports, jt)
-					jt = parts[len(parts)-1]
+				imp, jt, err := resolveImportAndType(ret.JavaType.Type)
+				if err != nil {
+					return "", nil, err
 				}
+				imports = append(imports, imp)
 
 				if ret.JavaType.IsList {
 					imports = append(imports, "java.util.List", "java.util.Arrays")
@@ -152,7 +150,7 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 				}
 
 				annotation := nonNullAnnotation
-				if ret.JavaType.Nullable {
+				if ret.JavaType.IsNullable {
 					annotation = nullableAnnotation
 				}
 
@@ -167,13 +165,11 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 			// the query only outputs a single value, we don't need to wrap it in an xxRow record class
 			ret := q.Returns[0]
 
-			jt := ret.JavaType.Type
-			if strings.Contains(jt, ".") {
-				parts := strings.Split(jt, ".")
-
-				imports = append(imports, jt)
-				jt = parts[len(parts)-1]
+			imp, jt, err := resolveImportAndType(ret.JavaType.Type)
+			if err != nil {
+				return "", nil, err
 			}
+			imports = append(imports, imp)
 
 			if ret.JavaType.IsList {
 				imports = append(imports, "java.util.List", "java.util.Arrays")
@@ -211,13 +207,11 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 			body.WriteString("\n")
 
 			for i, arg := range q.Args {
-				jt := arg.JavaType.Type
-				if strings.Contains(jt, ".") {
-					parts := strings.Split(jt, ".")
-
-					imports = append(imports, jt)
-					jt = parts[len(parts)-1]
+				imp, jt, err := resolveImportAndType(arg.JavaType.Type)
+				if err != nil {
+					return "", nil, err
 				}
+				imports = append(imports, imp)
 
 				if arg.JavaType.IsList {
 					imports = append(imports, "java.util.List")
@@ -225,7 +219,7 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 				}
 
 				annotation := nonNullAnnotation
-				if arg.JavaType.Nullable {
+				if arg.JavaType.IsNullable {
 					annotation = nullableAnnotation
 				}
 
@@ -252,6 +246,10 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 	slices.Sort(imports)
 	imports = slices.Compact(imports)
 	for _, imp := range imports {
+		if imp == "" {
+			continue
+		}
+
 		header.WriteString("import " + imp + ";\n")
 	}
 

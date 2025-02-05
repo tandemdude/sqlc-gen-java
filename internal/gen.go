@@ -3,14 +3,15 @@ package internal
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/tandemdude/sqlc-gen-java/internal/inflection"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/iancoleman/strcase"
-	"github.com/jinzhu/inflection"
 	"github.com/sqlc-dev/plugin-sdk-go/plugin"
 	"github.com/sqlc-dev/plugin-sdk-go/sdk"
 	"github.com/tandemdude/sqlc-gen-java/internal/codegen"
@@ -44,6 +45,28 @@ func fixQueryPlaceholders(engine, query string) (string, error) {
 	return newQuery, nil
 }
 
+func parseQueryReturn(tcf sql_types.TypeConversionFunc, col *plugin.Column) (*core.QueryReturn, error) {
+	name := strcase.ToCamel(col.Name)
+	javaType, err := tcf(col.Type)
+	if err != nil {
+		return nil, err
+	}
+
+	if col.ArrayDims > 1 {
+		return nil, fmt.Errorf("multidimensional arrays are not supported, store JSON instead")
+	}
+
+	return &core.QueryReturn{
+		Name: name,
+		JavaType: core.JavaType{
+			SqlType:    sdk.DataType(col.Type),
+			Type:       javaType,
+			IsList:     col.IsArray,
+			IsNullable: !col.NotNull,
+		},
+	}, nil
+}
+
 func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.GenerateResponse, error) {
 	conf := core.Config{
 		IndentChar:          defaultIndentChar,
@@ -65,9 +88,10 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 		return nil, fmt.Errorf("engine %q is not supported", req.Settings.Engine)
 	}
 
-	// parse the incoming generate request into our Queries type
-	models := make(map[string][]core.QueryReturn)
 	var queries core.Queries = make(map[string][]core.Query)
+	var embeddedModels core.EmbeddedModels = make(map[string][]core.QueryReturn)
+
+	// parse the incoming generate request into our Queries type
 	for _, query := range req.Queries {
 		if _, ok := queries[query.Filename]; !ok {
 			queries[query.Filename] = make([]core.Query, 0)
@@ -78,7 +102,7 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 			return nil, err
 		}
 
-		// TODO - check for array types? enum types? other specialness?
+		// TODO - enum types? other specialness?
 		args := make([]core.QueryArg, 0)
 		for _, arg := range query.Params {
 			javaType, err := typeConversionFunc(arg.Column.Type)
@@ -94,84 +118,78 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 				Number: int(arg.Number),
 				Name:   arg.Column.Name,
 				JavaType: core.JavaType{
-					SqlType:  sdk.DataType(arg.Column.Type),
-					Type:     javaType,
-					IsList:   arg.Column.IsArray, // TODO check this will always be present
-					Nullable: !arg.Column.NotNull,
+					SqlType:    sdk.DataType(arg.Column.Type),
+					Type:       javaType,
+					IsList:     arg.Column.IsArray, // TODO check this will always be present
+					IsNullable: !arg.Column.NotNull,
 				},
 			})
 		}
 
-		// TODO - check for array types? enum types? other specialness?
-		returns := make([]core.QueryReturn, 0)
+		// TODO - enum types? other specialness?
+		var returns []core.QueryReturn
 		for _, ret := range query.Columns {
-			var javaType string
-			var name string
-
-			if ret.EmbedTable != nil {
-				// sqlc.embed
-				// TODO: Make this customizable
-				// TODO: Account for a lot of manual fixes needed with AddSingular: https://github.com/jinzhu/inflection/issues
-				name = inflection.Singular(ret.EmbedTable.Name)
-
-				if _, ok := models[name]; !ok {
-					list := make([]core.QueryReturn, 0)
-
-					for _, s := range req.Catalog.Schemas {
-						for _, t := range s.Tables {
-							if t.Rel.Name != ret.EmbedTable.Name {
-								continue
-							}
-
-							for _, c := range t.Columns {
-								// TODO: deduplicate code
-								colJavaType, err := typeConversionFunc(c.Type)
-								if err != nil {
-									return nil, err
-								}
-
-								if c.ArrayDims > 1 {
-									return nil, fmt.Errorf("multidimensional arrays are not supported, store JSON instead")
-								}
-
-								list = append(list, core.QueryReturn{
-									Name: c.Name,
-									JavaType: core.JavaType{
-										SqlType:  sdk.DataType(c.Type),
-										Type:     colJavaType,
-										IsList:   c.IsArray,
-										Nullable: !c.NotNull,
-									},
-								})
-							}
-						}
-					}
-
-					models[name] = list
-				}
-
-				// TODO: Find cleaner way to do this
-				javaType = conf.Package + ".Models." + strcase.ToCamel(name)
-			} else {
+			if ret.EmbedTable == nil {
 				// normal types
-				name = strcase.ToCamel(ret.Name)
-				javaType, err = typeConversionFunc(ret.Type)
+				qr, err := parseQueryReturn(typeConversionFunc, ret)
 				if err != nil {
-					return nil, err
+					return nil, errors.Join(errors.New("failed to parse query return column"), err)
 				}
+
+				returns = append(returns, *qr)
+				continue
 			}
 
-			if ret.ArrayDims > 1 {
-				return nil, fmt.Errorf("multidimensional arrays are not supported, store JSON instead")
+			// handle embedded types
+			var table *plugin.Table
+
+			// find the catalog entry for the embedded table
+			schema := req.Catalog.DefaultSchema
+			if ret.EmbedTable.Schema != "" {
+				schema = ret.EmbedTable.Schema
+			}
+
+			for _, s := range req.Catalog.Schemas {
+				if s.Name != schema {
+					continue
+				}
+
+				for _, t := range s.Tables {
+					if ret.EmbedTable.Name == t.Rel.Name {
+						table = t
+						break
+					}
+				}
+			}
+			if table == nil {
+				return nil, fmt.Errorf("unknown embedded table %s.%s", schema, ret.EmbedTable)
+			}
+
+			// TODO - fix type-writer to only exclude items that aren't part of the package name
+			modelName := strcase.ToCamel(inflection.Singular(table.Rel.Name))
+			// check if we already have an entry for this model
+			if _, ok := embeddedModels[modelName]; !ok {
+				var modelParams []core.QueryReturn
+				for _, c := range table.Columns {
+					qr, err := parseQueryReturn(typeConversionFunc, c)
+					if err != nil {
+						return nil, errors.Join(errors.New("failed to parse query return column"), err)
+					}
+
+					modelParams = append(modelParams, *qr)
+				}
+
+				embeddedModels[modelName] = modelParams
 			}
 
 			returns = append(returns, core.QueryReturn{
-				Name: name,
+				Name: strcase.ToLowerCamel(modelName),
 				JavaType: core.JavaType{
-					SqlType:  sdk.DataType(ret.Type),
-					Type:     javaType,
-					IsList:   ret.IsArray,
-					Nullable: !ret.NotNull,
+					SqlType: "",
+					// we don't need to specify package here - models file will be generated in the same location as the queries file
+					Type:       "Models." + modelName,
+					IsList:     false, // TODO - check: this *should* be impossible
+					IsNullable: false, // TODO - check: empty record should be output instead
 				},
 			})
 		}
@@ -210,8 +228,8 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 		})
 	}
 
-	if len(models) > 0 {
-		fileName, fileContents, err := codegen.BuildModelsFile(conf, models)
+	if len(embeddedModels) > 0 {
+		fileName, fileContents, err := codegen.BuildModelsFile(conf, embeddedModels)
 		if err != nil {
 			return nil, err
 		}
