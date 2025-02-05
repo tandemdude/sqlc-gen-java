@@ -191,6 +191,7 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 					IsList:     false, // TODO - check: this *should* be impossible
 					IsNullable: false, // TODO - check: empty record should be output instead
 				},
+				EmbeddedModel: &modelName,
 			})
 		}
 
@@ -218,7 +219,7 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 		slices.SortFunc(queries[file], func(a, b core.Query) int { return strings.Compare(a.MethodName, b.MethodName) })
 
 		// build the queries file contents
-		fileName, fileContents, err := codegen.BuildQueriesFile(conf, file, queries[file])
+		fileName, fileContents, err := codegen.BuildQueriesFile(conf, file, queries[file], embeddedModels)
 		if err != nil {
 			return nil, err
 		}

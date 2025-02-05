@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"fmt"
 	"github.com/tandemdude/sqlc-gen-java/internal/core"
 	"os"
 	"strings"
@@ -32,4 +33,29 @@ func (b *IndentStringBuilder) writeSqlcHeader() {
 	b.WriteString("// versions:\n")
 	b.WriteString("//   sqlc " + sqlcVersion + "\n")
 	b.WriteString("//   sqlc-gen-java " + core.PluginVersion + "\n")
+}
+
+func (b *IndentStringBuilder) writeQueriesBoilerplate(nonNullAnnotation, nullableAnnotation string) {
+	methodTypes := [][]string{
+		{"Integer", "Int"},
+		{"Long", "Long"},
+		{"Float", "Float"},
+		{"Double", "Double"},
+		{"Boolean", "Boolean"},
+	}
+
+	for _, methodType := range methodTypes {
+		b.WriteIndentedString(1, fmt.Sprintf(
+			"private static %s%s get%s(%sResultSet rs, int col) throws SQLException {\n",
+			nullableAnnotation,
+			methodType[0],
+			methodType[1],
+			nonNullAnnotation,
+		))
+		b.WriteIndentedString(2, fmt.Sprintf(
+			"var colVal = rs.get%s(col); return rs.wasNull() ? null : colVal;\n",
+			methodType[1],
+		))
+		b.WriteIndentedString(1, "}\n")
+	}
 }

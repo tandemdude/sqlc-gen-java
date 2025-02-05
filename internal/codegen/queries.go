@@ -14,28 +14,60 @@ func resultRecordName(q core.Query) string {
 	return strcase.ToCamel(q.MethodName) + "Row"
 }
 
-func createResultRecord(sb *IndentStringBuilder, indentLevel int, q core.Query) {
+func createEmbeddedModel(sb *IndentStringBuilder, prefix, suffix string, identLevel, paramIdx int, r core.QueryReturn, embeddedModels core.EmbeddedModels) int {
+	modelName := *r.EmbeddedModel
+	model := embeddedModels[modelName]
+
+	sb.WriteIndentedString(identLevel, prefix+modelName+"(\n")
+	for i, ret := range model {
+		sb.WriteIndentedString(identLevel+1, ret.ResultStmt(paramIdx))
+
+		if i != len(model)-1 {
+			sb.WriteString(",\n")
+			paramIdx++
+		}
+	}
+	sb.WriteString("\n")
+	sb.WriteIndentedString(identLevel, suffix)
+
+	return paramIdx
+}
+
+func createResultRecord(sb *IndentStringBuilder, indentLevel int, q core.Query, embeddedModels core.EmbeddedModels) {
+	paramIdx := 1
+
 	if len(q.Returns) == 1 {
 		// set ret to the item directly instead of wrapping it in the result record
+		if q.Returns[0].EmbeddedModel != nil {
+			createEmbeddedModel(sb, "var ret = new ", ");\n", indentLevel, paramIdx, q.Returns[0], embeddedModels)
+			return
+		}
+
 		sb.WriteIndentedString(indentLevel, "var ret = "+q.Returns[0].ResultStmt(1)+";\n")
 		return
 	}
 
 	recordName := resultRecordName(q)
-
 	sb.WriteIndentedString(indentLevel, "var ret = new "+recordName+"(\n")
 	for i, ret := range q.Returns {
-		sb.WriteIndentedString(indentLevel+1, ret.ResultStmt(i+1))
+		// if this return is an embedded model we need to do a lil bit extra
+		if ret.EmbeddedModel != nil {
+			paramIdx = createEmbeddedModel(sb, "new ", ")", indentLevel+1, paramIdx, ret, embeddedModels)
+		} else {
+			sb.WriteIndentedString(indentLevel+1, ret.ResultStmt(paramIdx))
+		}
 
-		if i < len(q.Returns)-1 {
+		if i != len(q.Returns)-1 {
 			sb.WriteString(",\n")
 		}
+
+		paramIdx++
 	}
 	sb.WriteString("\n")
 	sb.WriteIndentedString(indentLevel, ");\n")
 }
 
-func completeMethodBody(sb *IndentStringBuilder, q core.Query) {
+func completeMethodBody(sb *IndentStringBuilder, q core.Query, embeddedModels core.EmbeddedModels) {
 	sb.WriteString("\n")
 
 	switch q.Command {
@@ -52,15 +84,23 @@ func completeMethodBody(sb *IndentStringBuilder, q core.Query) {
 		sb.WriteIndentedString(2, "if (!results.next()) {\n")
 		sb.WriteIndentedString(3, "return Optional.empty();\n")
 		sb.WriteIndentedString(2, "}\n\n")
-		createResultRecord(sb, 2, q)
+		createResultRecord(sb, 2, q, embeddedModels)
 		sb.WriteIndentedString(2, "if (results.next()) {\n")
 		sb.WriteIndentedString(3, "throw new SQLException(\"expected one row in result set, but got many\");\n")
 		sb.WriteIndentedString(2, "}\n\n")
 		sb.WriteIndentedString(2, "return Optional.of(ret);\n")
 	case core.Many:
-		sb.WriteIndentedString(2, "var retList = new ArrayList<"+resultRecordName(q)+">();\n")
+		jt := resultRecordName(q)
+		if len(q.Returns) == 1 {
+			_, jt, _ = core.ResolveImportAndType(q.Returns[0].JavaType.Type)
+			if q.Returns[0].EmbeddedModel != nil {
+				jt = *q.Returns[0].EmbeddedModel
+			}
+		}
+
+		sb.WriteIndentedString(2, "var retList = new ArrayList<"+jt+">();\n")
 		sb.WriteIndentedString(2, "while (results.next()) {\n")
-		createResultRecord(sb, 3, q)
+		createResultRecord(sb, 3, q, embeddedModels)
 		sb.WriteIndentedString(3, "retList.add(ret);\n")
 		sb.WriteIndentedString(2, "}\n\n")
 		sb.WriteIndentedString(2, "return retList;\n")
@@ -79,14 +119,14 @@ func completeMethodBody(sb *IndentStringBuilder, q core.Query) {
 	}
 }
 
-func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Query) (string, []byte, error) {
+func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Query, embeddedModels core.EmbeddedModels) (string, []byte, error) {
 	className := strcase.ToCamel(strings.TrimSuffix(queryFilename, ".sql"))
 	className = strings.TrimSuffix(className, "Query")
 	className = strings.TrimSuffix(className, "Queries")
 	className += "Queries"
 
 	imports := make([]string, 0)
-	imports = append(imports, "java.sql.Connection", "java.sql.SQLException")
+	imports = append(imports, "java.sql.Connection", "java.sql.SQLException", "java.sql.ResultSet")
 
 	var nonNullAnnotation string
 	if config.NonNullAnnotation != "" {
@@ -113,6 +153,10 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 	body.WriteIndentedString(1, "public "+className+"(Connection conn) {\n")
 	body.WriteIndentedString(2, "this.conn = conn;\n")
 	body.WriteIndentedString(1, "}\n")
+
+	// boilerplate methods to allow for getting null primitive values
+	body.WriteString("\n")
+	body.writeQueriesBoilerplate(nonNullAnnotation, nullableAnnotation)
 
 	for _, q := range queries {
 		body.WriteString("\n")
@@ -236,7 +280,7 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 			body.WriteString(") throws SQLException {\n")
 		}
 
-		completeMethodBody(methodBody, q)
+		completeMethodBody(methodBody, q, embeddedModels)
 		body.WriteString(methodBody.String())
 		body.WriteIndentedString(1, "}\n")
 	}

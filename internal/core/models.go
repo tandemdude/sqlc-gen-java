@@ -50,7 +50,7 @@ type QueryArg struct {
 }
 
 // TODO - enum types
-var literalBindTypes = []string{"Long", "Short", "String", "Boolean", "Float", "Double", "BigDecimal"}
+var literalBindTypes = []string{"Integer", "Long", "Short", "String", "Boolean", "Float", "Double", "BigDecimal"}
 
 func (q QueryArg) BindStmt() string {
 	typeOnly := q.JavaType.Type[strings.LastIndex(q.JavaType.Type, ".")+1:]
@@ -63,6 +63,10 @@ func (q QueryArg) BindStmt() string {
 	}
 
 	if slices.Contains(literalBindTypes, typeOnly) {
+		// annoying special case
+		if typeOnly == "Integer" {
+			typeOnly = "Int"
+		}
 		return fmt.Sprintf("stmt.set%s(%d, %s);", typeOnly, q.Number, q.Name)
 	}
 
@@ -70,8 +74,9 @@ func (q QueryArg) BindStmt() string {
 }
 
 type QueryReturn struct {
-	Name     string
-	JavaType JavaType
+	Name          string
+	JavaType      JavaType
+	EmbeddedModel *string
 }
 
 func (q QueryReturn) ResultStmt(number int) string {
@@ -83,6 +88,14 @@ func (q QueryReturn) ResultStmt(number int) string {
 	}
 
 	if slices.Contains(literalBindTypes, typeOnly) {
+		// annoying special case
+		if typeOnly == "Integer" {
+			typeOnly = "Int"
+		}
+
+		if q.JavaType.IsNullable {
+			return fmt.Sprintf("get%s(results, %d)", typeOnly, number)
+		}
 		return fmt.Sprintf("results.get%s(%d)", typeOnly, number)
 	}
 
