@@ -3,7 +3,25 @@ name: CI
 on: [push, pull_request]
 
 jobs:
+  test-go:
+    name: Test Go
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: './go.mod'
+
+      - name: Run tests
+        run: go test ./...
+
   test-java:
+    needs: [test-go]
+
     name: Test Java
     runs-on: ubuntu-latest
 

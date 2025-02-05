@@ -8,7 +8,7 @@ import (
 	"github.com/tandemdude/sqlc-gen-java/internal/core"
 )
 
-func BuildModelsFile(config core.Config, models map[string][]core.QueryReturn) (string, []byte, error) {
+func BuildModelsFile(config core.Config, models core.EmbeddedModels) (string, []byte, error) {
 	imports := make([]string, 0)
 
 	var nonNullAnnotation string
@@ -23,8 +23,7 @@ func BuildModelsFile(config core.Config, models map[string][]core.QueryReturn) (
 	}
 
 	header := NewIndentStringBuilder(config.IndentChar, config.CharsPerIndentLevel)
-	writeSqlcHeader(header)
-
+	header.writeSqlcHeader()
 	header.WriteString("\n")
 	header.WriteString("package " + config.Package + ";\n")
 	header.WriteString("\n")
@@ -37,21 +36,19 @@ func BuildModelsFile(config core.Config, models map[string][]core.QueryReturn) (
 		body.WriteString("\n")
 		body.WriteIndentedString(1, "public record "+strcase.ToCamel(modelName)+"(\n")
 		for i, ret := range modelFields {
-			jt := ret.JavaType.Type
-			if strings.Contains(jt, ".") {
-				parts := strings.Split(jt, ".")
-
-				imports = append(imports, jt)
-				jt = parts[len(parts)-1]
+			imp, jt, err := resolveImportAndType(ret.JavaType.Type)
+			if err != nil {
+				return "", nil, err
 			}
+			imports = append(imports, imp)
 
 			if ret.JavaType.IsList {
-				imports = append(imports, "java.util.List", "java.util.Arrays")
+				imports = append(imports, "java.util.List")
 				jt = "List<" + jt + ">"
 			}
 
 			annotation := nonNullAnnotation
-			if ret.JavaType.Nullable {
+			if ret.JavaType.IsNullable {
 				annotation = nullableAnnotation
 			}
 
@@ -70,6 +67,10 @@ func BuildModelsFile(config core.Config, models map[string][]core.QueryReturn) (
 	slices.Sort(imports)
 	imports = slices.Compact(imports)
 	for _, imp := range imports {
+		if imp == "" {
+			continue
+		}
+
 		header.WriteString("import " + imp + ";\n")
 	}
 

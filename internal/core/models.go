@@ -37,10 +37,10 @@ func QueryCommandFor(rawCommand string) (QueryCommand, error) {
 }
 
 type JavaType struct {
-	SqlType  string
-	Type     string
-	IsList   bool
-	Nullable bool
+	SqlType    string
+	Type       string
+	IsList     bool
+	IsNullable bool
 }
 
 type QueryArg struct {
@@ -56,7 +56,7 @@ func (q QueryArg) BindStmt() string {
 	typeOnly := q.JavaType.Type[strings.LastIndex(q.JavaType.Type, ".")+1:]
 
 	if q.JavaType.IsList {
-		if q.JavaType.Nullable {
+		if q.JavaType.IsNullable {
 			return fmt.Sprintf("stmt.setArray(%d, %s == null ? null : conn.createArrayOf(\"%s\", %s.toArray()));", q.Number, q.Name, q.JavaType.SqlType, q.Name)
 		}
 		return fmt.Sprintf("stmt.setArray(%d, conn.createArrayOf(\"%s\", %s.toArray()));", q.Number, q.JavaType.SqlType, q.Name)
@@ -99,3 +99,4 @@ type Query struct {
 }
 
 type Queries map[string][]Query
+type EmbeddedModels map[string][]QueryReturn
