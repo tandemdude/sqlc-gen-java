@@ -51,6 +51,14 @@ type QueryArg struct {
 
 // TODO - enum types
 var literalBindTypes = []string{"Integer", "Long", "Short", "String", "Boolean", "Float", "Double", "BigDecimal"}
+var bindTypeToJavaSqlTypeConst = map[string]string{
+	"Integer": "INTEGER",
+	"Long":    "BIGINT",
+	"Short":   "SMALLINT",
+	"Boolean": "BOOLEAN",
+	"Float":   "REAL",
+	"Double":  "DOUBLE",
+}
 
 func (q QueryArg) BindStmt() string {
 	typeOnly := q.JavaType.Type[strings.LastIndex(q.JavaType.Type, ".")+1:]
@@ -63,11 +71,18 @@ func (q QueryArg) BindStmt() string {
 	}
 
 	if slices.Contains(literalBindTypes, typeOnly) {
+		javaSqlType, ok := bindTypeToJavaSqlTypeConst[typeOnly]
 		// annoying special case
 		if typeOnly == "Integer" {
 			typeOnly = "Int"
 		}
-		return fmt.Sprintf("stmt.set%s(%d, %s);", typeOnly, q.Number, q.Name)
+		rawSet := fmt.Sprintf("stmt.set%s(%d, %s);", typeOnly, q.Number, q.Name)
+
+		if !q.JavaType.IsNullable || !ok {
+			return rawSet
+		}
+
+		return fmt.Sprintf("%s == null ? stmt.setNull(%d, Types.%s) : %s", q.Name, q.Number, javaSqlType, rawSet)
 	}
 
 	return fmt.Sprintf("stmt.setObject(%d, %s);", q.Number, q.Name)
