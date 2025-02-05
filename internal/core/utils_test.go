@@ -1,4 +1,4 @@
-package codegen
+package core
 
 import "testing"
 
@@ -19,7 +19,7 @@ func TestResolveImportAndType(t *testing.T) {
 	}
 
 	for i, tc := range cases {
-		imp, typ, err := resolveImportAndType(tc)
+		imp, typ, err := ResolveImportAndType(tc)
 		if err != nil {
 			t.Fatal(err)
 		}

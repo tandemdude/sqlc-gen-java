@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 
@@ -8,7 +9,7 @@ import (
 	"github.com/tandemdude/sqlc-gen-java/internal/core"
 )
 
-func BuildModelsFile(config core.Config, models core.EmbeddedModels) (string, []byte, error) {
+func BuildModelFile(config core.Config, name string, model []core.QueryReturn) (string, []byte, error) {
 	imports := make([]string, 0)
 
 	var nonNullAnnotation string
@@ -25,43 +26,36 @@ func BuildModelsFile(config core.Config, models core.EmbeddedModels) (string, []
 	header := NewIndentStringBuilder(config.IndentChar, config.CharsPerIndentLevel)
 	header.writeSqlcHeader()
 	header.WriteString("\n")
-	header.WriteString("package " + config.Package + ";\n")
+	header.WriteString("package " + config.Package + ".models;\n")
 	header.WriteString("\n")
 
 	body := NewIndentStringBuilder(config.IndentChar, config.CharsPerIndentLevel)
 	body.WriteString("\n")
-	body.WriteString("public class Models {")
-
-	for modelName, modelFields := range models {
-		body.WriteString("\n")
-		body.WriteIndentedString(1, "public record "+strcase.ToCamel(modelName)+"(\n")
-		for i, ret := range modelFields {
-			imp, jt, err := resolveImportAndType(ret.JavaType.Type)
-			if err != nil {
-				return "", nil, err
-			}
-			imports = append(imports, imp)
-
-			if ret.JavaType.IsList {
-				imports = append(imports, "java.util.List")
-				jt = "List<" + jt + ">"
-			}
-
-			annotation := nonNullAnnotation
-			if ret.JavaType.IsNullable {
-				annotation = nullableAnnotation
-			}
-
-			body.WriteIndentedString(2, annotation+jt+" "+strcase.ToLowerCamel(ret.Name))
-			if i != len(modelFields)-1 {
-				body.WriteString(",\n")
-			}
+	body.WriteString("public record " + strcase.ToCamel(name) + "(\n")
+	for i, ret := range model {
+		imp, jt, err := core.ResolveImportAndType(ret.JavaType.Type)
+		if err != nil {
+			return "", nil, err
 		}
-		body.WriteString("\n")
-		body.WriteIndentedString(1, ") {}\n")
+		imports = append(imports, imp)
 
+		if ret.JavaType.IsList {
+			imports = append(imports, "java.util.List")
+			jt = "List<" + jt + ">"
+		}
+
+		annotation := nonNullAnnotation
+		if ret.JavaType.IsNullable {
+			annotation = nullableAnnotation
+		}
+
+		body.WriteIndentedString(1, annotation+jt+" "+strcase.ToLowerCamel(ret.Name))
+		if i != len(model)-1 {
+			body.WriteString(",\n")
+		}
 	}
-	body.WriteString("}")
+	body.WriteString("\n")
+	body.WriteString(") {}\n")
 
 	// sort alphabetically and remove duplicate imports
 	slices.Sort(imports)
@@ -74,5 +68,5 @@ func BuildModelsFile(config core.Config, models core.EmbeddedModels) (string, []
 		header.WriteString("import " + imp + ";\n")
 	}
 
-	return "Models.java", []byte(header.String() + body.String()), nil
+	return fmt.Sprintf("models/%s.java", strcase.ToCamel(name)), []byte(header.String() + body.String()), nil
 }

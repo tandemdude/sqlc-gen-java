@@ -75,6 +75,7 @@ type QueryReturn struct {
 }
 
 func (q QueryReturn) ResultStmt(number int) string {
+	//_, typeOnly, _ :=
 	typeOnly := q.JavaType.Type[strings.LastIndex(q.JavaType.Type, ".")+1:]
 
 	if q.JavaType.IsList {

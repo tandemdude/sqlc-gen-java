@@ -187,7 +187,7 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 				JavaType: core.JavaType{
 					SqlType: "",
 					// we don't need to specify package here - models file will be generated in the same location as the queries file
-					Type:       "Models." + modelName,
+					Type:       conf.Package + ".models." + modelName,
 					IsList:     false, // TODO - check: this *should* be impossible
 					IsNullable: false, // TODO - check: empty record should be output instead
 				},
@@ -228,8 +228,8 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 		})
 	}
 
-	if len(embeddedModels) > 0 {
-		fileName, fileContents, err := codegen.BuildModelsFile(conf, embeddedModels)
+	for modelName, model := range embeddedModels {
+		fileName, fileContents, err := codegen.BuildModelFile(conf, modelName, model)
 		if err != nil {
 			return nil, err
 		}
@@ -238,8 +238,6 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 			Contents: fileContents,
 		})
 	}
-
-	// TODO - figure out common output models so we don't duplicate the same model in code 100 times
 
 	return &plugin.GenerateResponse{Files: outputFiles}, nil
 }
