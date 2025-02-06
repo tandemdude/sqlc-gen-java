@@ -20,7 +20,7 @@ A WASM plugin for SQLC allowing the generation of Java code.
 
 ## Usage
 
-Check the latest GitHub release for the plugin download URL and checksum.
+Check the [latest GitHub release](https://github.com/tandemdude/sqlc-gen-java/releases/latest) for the plugin download URL and checksum.
 
 `sqlc.yaml`
 ```yaml
