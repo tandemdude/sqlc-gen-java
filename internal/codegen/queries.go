@@ -131,12 +131,12 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 	var nonNullAnnotation string
 	if config.NonNullAnnotation != "" {
 		imports = append(imports, config.NonNullAnnotation)
-		nonNullAnnotation = "@" + config.NonNullAnnotation[strings.LastIndex(config.NonNullAnnotation, ".")+1:] + " "
+		nonNullAnnotation = "@" + config.NonNullAnnotation[strings.LastIndex(config.NonNullAnnotation, ".")+1:]
 	}
 	var nullableAnnotation string
 	if config.NullableAnnotation != "" {
 		imports = append(imports, config.NullableAnnotation)
-		nullableAnnotation = "@" + config.NullableAnnotation[strings.LastIndex(config.NullableAnnotation, ".")+1:] + " "
+		nullableAnnotation = "@" + config.NullableAnnotation[strings.LastIndex(config.NullableAnnotation, ".")+1:]
 	}
 
 	header := NewIndentStringBuilder(config.IndentChar, config.CharsPerIndentLevel)
@@ -198,7 +198,7 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 					annotation = nullableAnnotation
 				}
 
-				body.WriteIndentedString(2, annotation+jt+" "+strcase.ToLowerCamel(ret.Name))
+				body.WriteIndentedString(2, core.Annotate(jt, annotation)+" "+strcase.ToLowerCamel(ret.Name))
 				if i != len(q.Returns)-1 {
 					body.WriteString(",\n")
 				}
@@ -267,7 +267,7 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 					annotation = nullableAnnotation
 				}
 
-				body.WriteIndentedString(2, annotation+jt+" "+arg.Name)
+				body.WriteIndentedString(2, core.Annotate(jt, annotation)+" "+arg.Name)
 				if i != len(q.Args)-1 {
 					body.WriteString(",\n")
 				}

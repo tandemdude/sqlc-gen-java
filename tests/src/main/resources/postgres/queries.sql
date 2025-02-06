@@ -41,3 +41,11 @@ SELECT * FROM messages WHERE message_id = $1;
 
 -- name: GetMessageContent :one
 SELECT content FROM messages WHERE message_id = $1;
+
+-- name: CreateBytes :one
+INSERT INTO bytes(contents, hash)
+VALUES($1, $2)
+RETURNING row_id;
+
+-- name: GetBytes :one
+SELECT * FROM bytes WHERE row_id = $1;

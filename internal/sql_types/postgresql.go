@@ -24,9 +24,11 @@ func PostgresTypeToJavaType(identifier *plugin.Identifier) (string, error) {
 		return "java.math.BigDecimal", nil
 	case "bool", "pg_catalog.bool":
 		return "Boolean", nil
-	// TODO - figure out how/if these can be supported properly
-	case "jsonb", "bytea", "blob", "pg_catalog.bytea":
+	// TODO - figure out if this can be supported properly
+	case "jsonb":
 		return "String", nil
+	case "bytea", "blob", "pg_catalog.bytea":
+		return "byte[]", nil
 	case "date":
 		return "java.time.LocalDate", nil
 	case "pg_catalog.time", "pg_catalog.timetz":

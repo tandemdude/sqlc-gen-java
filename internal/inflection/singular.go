@@ -2,10 +2,15 @@ package inflection
 
 import (
 	"github.com/jinzhu/inflection"
+	"slices"
 	"strings"
 )
 
-func Singular(s string) string {
+func Singular(s string, excludes []string) string {
+	if slices.Contains(excludes, s) {
+		return s
+	}
+
 	// Manual fix for incorrect handling of "campus"
 	//
 	// https://github.com/kyleconroy/sqlc/issues/430

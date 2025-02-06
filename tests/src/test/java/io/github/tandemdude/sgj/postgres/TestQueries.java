@@ -1,11 +1,13 @@
 package io.github.tandemdude.sgj.postgres;
 
+import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -111,23 +113,45 @@ public class TestQueries {
     }
 
     @Test
-    @DisplayName("GetUserAndToken returns embeded objects")
-    public void getUserAndTokenReturnsEmbededObjects() throws Exception {
+    @DisplayName("GetUserAndToken returns embedded objects")
+    public void getUserAndTokenReturnsEmbeddedObjects() throws Exception {
         try (var conn = getConn()) {
-            // given
             var q = new Queries(conn);
 
             var userUid = UUID.randomUUID();
             q.createUser(userUid, "foo", "bar");
             q.createToken(userUid, "token", LocalDateTime.now());
 
-            // when
             var userAndToken = q.getUserAndToken(userUid);
-
-            // then
             assertThat(userAndToken).isPresent();
             assertThat(userAndToken.get().user().username()).isEqualTo("foo");
             assertThat(userAndToken.get().token().userId()).isEqualTo(userUid);
+        }
+    }
+
+    @Test
+    @DisplayName("GetBytes returns same data as during creation")
+    public void getBytesReturnsSameDataAsDuringCreation() throws Exception {
+        try (var conn = getConn()) {
+            var q = new Queries(conn);
+
+            var s1 = "foobar".getBytes(StandardCharsets.UTF_8);
+            var r1 = q.createBytes(s1, null);
+            assertThat(r1).isPresent();
+
+            var found1 = q.getBytes(r1.get());
+            assertThat(found1).isPresent();
+            assertThat(found1.get().contents()).isEqualTo(s1);
+            assertThat(found1.get().hash()).isNull();
+
+            var s2 = "bazbork".getBytes(StandardCharsets.UTF_8);
+            var r2 = q.createBytes(s1, s2);
+            assertThat(r2).isPresent();
+
+            var found2 = q.getBytes(r2.get());
+            assertThat(found2).isPresent();
+            assertThat(found2.get().contents()).isEqualTo(s1);
+            assertThat(found2.get().hash()).isEqualTo(s2);
         }
     }
 }

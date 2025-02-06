@@ -46,11 +46,10 @@ func (b *IndentStringBuilder) writeQueriesBoilerplate(nonNullAnnotation, nullabl
 
 	for _, methodType := range methodTypes {
 		b.WriteIndentedString(1, fmt.Sprintf(
-			"private static %s%s get%s(%sResultSet rs, int col) throws SQLException {\n",
-			nullableAnnotation,
-			methodType[0],
+			"private static %s get%s(%s rs, int col) throws SQLException {\n",
+			core.Annotate(methodType[0], nullableAnnotation),
 			methodType[1],
-			nonNullAnnotation,
+			core.Annotate("ResultSet", nonNullAnnotation),
 		))
 		b.WriteIndentedString(2, fmt.Sprintf(
 			"var colVal = rs.get%s(col); return rs.wasNull() ? null : colVal;\n",

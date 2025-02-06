@@ -31,3 +31,10 @@ CREATE TABLE messages (
     sent_at_time    TIME DEFAULT NOW()::time without time zone,
     sent_at_date    DATE DEFAULT NOW()::date
 );
+
+-- table for testing bytes types
+CREATE TABLE bytes (
+    row_id SERIAL PRIMARY KEY,
+    contents BYTEA NOT NULL,
+    hash BYTEA DEFAULT NULL
+);

@@ -50,8 +50,13 @@ type QueryArg struct {
 }
 
 // TODO - enum types
-var literalBindTypes = []string{"Integer", "Long", "Short", "String", "Boolean", "Float", "Double", "BigDecimal"}
-var bindTypeToJavaSqlTypeConst = map[string]string{
+
+var literalBindTypes = []string{"Integer", "Long", "Short", "String", "Boolean", "Float", "Double", "BigDecimal", "byte[]"}
+var typeToMethodRename = map[string]string{
+	"Integer": "Int",
+	"byte[]":  "Bytes",
+}
+var typeToJavaSqlTypeConst = map[string]string{
 	"Integer": "INTEGER",
 	"Long":    "BIGINT",
 	"Short":   "SMALLINT",
@@ -71,13 +76,14 @@ func (q QueryArg) BindStmt() string {
 	}
 
 	if slices.Contains(literalBindTypes, typeOnly) {
-		javaSqlType, ok := bindTypeToJavaSqlTypeConst[typeOnly]
-		// annoying special case
-		if typeOnly == "Integer" {
-			typeOnly = "Int"
+		javaSqlType, ok := typeToJavaSqlTypeConst[typeOnly]
+		// annoying special cases
+		if found, ok := typeToMethodRename[typeOnly]; ok {
+			typeOnly = found
 		}
 		rawSet := fmt.Sprintf("stmt.set%s(%d, %s);", typeOnly, q.Number, q.Name)
 
+		// if the arg is not nullable, or supports null directly though the method
 		if !q.JavaType.IsNullable || !ok {
 			return rawSet
 		}
@@ -95,20 +101,21 @@ type QueryReturn struct {
 }
 
 func (q QueryReturn) ResultStmt(number int) string {
-	//_, typeOnly, _ :=
 	typeOnly := q.JavaType.Type[strings.LastIndex(q.JavaType.Type, ".")+1:]
 
 	if q.JavaType.IsList {
+		// TODO - check for nullable array support
 		return fmt.Sprintf("Arrays.asList((%s[]) results.getArray(%d).getArray())", typeOnly, number)
 	}
 
 	if slices.Contains(literalBindTypes, typeOnly) {
-		// annoying special case
-		if typeOnly == "Integer" {
-			typeOnly = "Int"
+		_, ok := typeToJavaSqlTypeConst[typeOnly]
+		// annoying special cases
+		if found, ok := typeToMethodRename[typeOnly]; ok {
+			typeOnly = found
 		}
 
-		if q.JavaType.IsNullable {
+		if q.JavaType.IsNullable && ok {
 			return fmt.Sprintf("get%s(results, %d)", typeOnly, number)
 		}
 		return fmt.Sprintf("results.get%s(%d)", typeOnly, number)

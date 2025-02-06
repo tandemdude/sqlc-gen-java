@@ -15,12 +15,12 @@ func BuildModelFile(config core.Config, name string, model []core.QueryReturn) (
 	var nonNullAnnotation string
 	if config.NonNullAnnotation != "" {
 		imports = append(imports, config.NonNullAnnotation)
-		nonNullAnnotation = "@" + config.NonNullAnnotation[strings.LastIndex(config.NonNullAnnotation, ".")+1:] + " "
+		nonNullAnnotation = "@" + config.NonNullAnnotation[strings.LastIndex(config.NonNullAnnotation, ".")+1:]
 	}
 	var nullableAnnotation string
 	if config.NullableAnnotation != "" {
 		imports = append(imports, config.NullableAnnotation)
-		nullableAnnotation = "@" + config.NullableAnnotation[strings.LastIndex(config.NullableAnnotation, ".")+1:] + " "
+		nullableAnnotation = "@" + config.NullableAnnotation[strings.LastIndex(config.NullableAnnotation, ".")+1:]
 	}
 
 	header := NewIndentStringBuilder(config.IndentChar, config.CharsPerIndentLevel)
@@ -49,7 +49,7 @@ func BuildModelFile(config core.Config, name string, model []core.QueryReturn) (
 			annotation = nullableAnnotation
 		}
 
-		body.WriteIndentedString(1, annotation+jt+" "+strcase.ToLowerCamel(ret.Name))
+		body.WriteIndentedString(1, core.Annotate(jt, annotation)+" "+strcase.ToLowerCamel(ret.Name))
 		if i != len(model)-1 {
 			body.WriteString(",\n")
 		}

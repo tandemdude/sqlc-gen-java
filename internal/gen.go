@@ -170,7 +170,11 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 			}
 
 			// TODO - fix type-writer to only exclude items that aren't part of the package name
-			modelName := strcase.ToCamel(inflection.Singular(table.Rel.Name))
+			modelName := strcase.ToCamel(table.Rel.Name)
+			if !conf.EmitExactTableNames {
+				modelName = strcase.ToCamel(inflection.Singular(table.Rel.Name, conf.InflectionExcludeTableNames))
+			}
+
 			// check if we already have an entry for this model
 			if _, ok := embeddedModels[modelName]; !ok {
 				var modelParams []core.QueryReturn
