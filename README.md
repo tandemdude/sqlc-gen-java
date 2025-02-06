@@ -20,15 +20,16 @@ A WASM plugin for SQLC allowing the generation of Java code.
 
 ## Usage
 
-`sqlc.yaml`
+Check the latest GitHub release for the plugin download URL and checksum.
 
+`sqlc.yaml`
 ```yaml
 version: "2"
 plugins:
   - name: java
     wasm:
-      url: TODO
-      sha256: TODO
+      url: https://github.com/tandemdude/sqlc-gen-java/releases/download/{{VERSION}}/sqlc-gen-java.wasm
+      sha256: {{CHECKSUM}}
 sql:
   - schema: src/main/resources/postgresql/schema.sql
     queries: src/main/resources/postgresql/queries.sql
