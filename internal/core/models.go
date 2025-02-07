@@ -105,7 +105,10 @@ func (q QueryReturn) ResultStmt(number int) string {
 
 	if q.JavaType.IsList {
 		// TODO - check for nullable array support
-		return fmt.Sprintf("Arrays.asList((%s[]) results.getArray(%d).getArray())", typeOnly, number)
+		if q.JavaType.IsNullable {
+			return fmt.Sprintf("getList(results, %d, %s[].class)", number, typeOnly)
+		}
+		return fmt.Sprintf("Arrays.asList(%s[].class.cast(results.getArray(%d).getArray()))", typeOnly, number)
 	}
 
 	if slices.Contains(literalBindTypes, typeOnly) {

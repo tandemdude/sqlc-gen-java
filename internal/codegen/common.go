@@ -57,4 +57,12 @@ func (b *IndentStringBuilder) writeQueriesBoilerplate(nonNullAnnotation, nullabl
 		))
 		b.WriteIndentedString(1, "}\n")
 	}
+
+	b.WriteIndentedString(1, fmt.Sprintf(
+		"private static <T> %s getList(%s rs, int col, Class<T[]> as) throws SQLException {\n",
+		core.Annotate("List<T>", nullableAnnotation),
+		core.Annotate("ResultSet", nonNullAnnotation),
+	))
+	b.WriteIndentedString(2, "var colVal = rs.getArray(col); return rs.wasNull() ? null : Arrays.asList(as.cast(colVal.getArray()));\n")
+	b.WriteIndentedString(1, "}\n")
 }
