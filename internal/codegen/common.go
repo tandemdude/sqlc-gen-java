@@ -63,6 +63,6 @@ func (b *IndentStringBuilder) writeQueriesBoilerplate(nonNullAnnotation, nullabl
 		core.Annotate("List<T>", nullableAnnotation),
 		core.Annotate("ResultSet", nonNullAnnotation),
 	))
-	b.WriteIndentedString(2, "var colVal = rs.getArray(col); return rs.wasNull() ? null : Arrays.asList(as.cast(colVal.getArray()));\n")
+	b.WriteIndentedString(2, "var colVal = rs.getArray(col); return colVal == null ? null : Arrays.asList(as.cast(colVal.getArray()));\n")
 	b.WriteIndentedString(1, "}\n")
 }
