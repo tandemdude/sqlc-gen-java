@@ -113,6 +113,21 @@ public class TestQueries {
     }
 
     @Test
+    @DisplayName("GetMessage works when attachments is null")
+    public void getMessageWorksWhenAttachmentsIsNull() throws Exception {
+        try (var conn = getConn()) {
+            var q = new Queries(conn);
+
+            var created = q.createMessage(1, UUID.randomUUID(), "foo", null);
+            assertThat(created).isPresent();
+
+            var found = q.getMessage(created.get());
+            assertThat(found).isPresent();
+            assertThat(found.get().attachments()).isNull();
+        }
+    }
+
+    @Test
     @DisplayName("GetUserAndToken returns embedded objects")
     public void getUserAndTokenReturnsEmbeddedObjects() throws Exception {
         try (var conn = getConn()) {
