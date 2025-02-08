@@ -34,7 +34,7 @@ func ResolveImportAndType(typ string) (string, string, error) {
 }
 
 // Annotate adds the given annotation to the given Java type. The annotation will always be added to the final
-// element of the type. For types with
+// element of the type.
 // E.g.
 // - for a package-qualified type: "org.example.@Annotation Foo"
 // - for an array type: "Foo @Annotation []"
@@ -53,4 +53,27 @@ func Annotate(typ, annotation string) string {
 
 	parts := strings.Split(typ, ".")
 	return fmt.Sprintf("%s.%s %s", strings.Join(parts[:len(parts)-1], "."), annotation, parts[len(parts)-1])
+}
+
+var unboxMap = map[string]string{
+	"Integer": "int",
+	"Long":    "long",
+	"Short":   "short",
+	"Boolean": "boolean",
+	"Float":   "float",
+	"Double":  "double",
+}
+
+// MaybeUnbox returns the unboxed form of the given type - if it is not nullable - otherwise does nothing. The function
+// returns a boolean indicating whether the given type was unboxed.
+func MaybeUnbox(typ string, nullable bool) (string, bool) {
+	if nullable {
+		return typ, false
+	}
+
+	newType, ok := unboxMap[typ]
+	if ok {
+		return newType, true
+	}
+	return typ, false
 }

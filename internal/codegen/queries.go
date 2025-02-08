@@ -154,6 +154,11 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 	body.WriteIndentedString(2, "this.conn = conn;\n")
 	body.WriteIndentedString(1, "}\n")
 
+	if config.ExposeConnection {
+		body.WriteString("\n")
+		body.WriteIndentedString(1, "public Connection getConn() {return this.conn;}\n")
+	}
+
 	// boilerplate methods to allow for getting null primitive values
 	body.WriteString("\n")
 	body.writeQueriesBoilerplate(nonNullAnnotation, nullableAnnotation)
@@ -182,23 +187,14 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 			body.WriteString("\n")
 			body.WriteIndentedString(1, "public record "+returnType+"(\n")
 			for i, ret := range q.Returns {
-				imp, jt, err := core.ResolveImportAndType(ret.JavaType.Type)
+				imps, err := body.writeParameter(ret.JavaType, ret.Name, nonNullAnnotation, nullableAnnotation)
 				if err != nil {
 					return "", nil, err
 				}
-				imports = append(imports, imp)
-
-				if ret.JavaType.IsList {
-					imports = append(imports, "java.util.List", "java.util.Arrays")
-					jt = "List<" + jt + ">"
+				if imps != nil {
+					imports = append(imports, imps...)
 				}
-
-				annotation := nonNullAnnotation
-				if ret.JavaType.IsNullable {
-					annotation = nullableAnnotation
-				}
-
-				body.WriteIndentedString(2, core.Annotate(jt, annotation)+" "+strcase.ToLowerCamel(ret.Name))
+				
 				if i != len(q.Returns)-1 {
 					body.WriteString(",\n")
 				}
@@ -251,23 +247,14 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 			body.WriteString("\n")
 
 			for i, arg := range q.Args {
-				imp, jt, err := core.ResolveImportAndType(arg.JavaType.Type)
+				imps, err := body.writeParameter(arg.JavaType, arg.Name, nonNullAnnotation, nullableAnnotation)
 				if err != nil {
 					return "", nil, err
 				}
-				imports = append(imports, imp)
-
-				if arg.JavaType.IsList {
-					imports = append(imports, "java.util.List")
-					jt = "List<" + jt + ">"
+				if imps != nil {
+					imports = append(imports, imps...)
 				}
 
-				annotation := nonNullAnnotation
-				if arg.JavaType.IsNullable {
-					annotation = nullableAnnotation
-				}
-
-				body.WriteIndentedString(2, core.Annotate(jt, annotation)+" "+arg.Name)
 				if i != len(q.Args)-1 {
 					body.WriteString(",\n")
 				}

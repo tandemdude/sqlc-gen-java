@@ -66,3 +66,29 @@ func (b *IndentStringBuilder) writeQueriesBoilerplate(nonNullAnnotation, nullabl
 	b.WriteIndentedString(2, "var colVal = rs.getArray(col); return colVal == null ? null : Arrays.asList(as.cast(colVal.getArray()));\n")
 	b.WriteIndentedString(1, "}\n")
 }
+
+func (b *IndentStringBuilder) writeParameter(javaType core.JavaType, name, nonNullAnnotation, nullableAnnotation string) ([]string, error) {
+	imp, jt, err := core.ResolveImportAndType(javaType.Type)
+	if err != nil {
+		return nil, err
+	}
+	imports := []string{imp}
+
+	if javaType.IsList {
+		imports = append(imports, "java.util.List")
+		jt = "List<" + jt + ">"
+	}
+
+	annotation := nonNullAnnotation
+	if javaType.IsNullable {
+		annotation = nullableAnnotation
+	}
+
+	newType, unboxed := core.MaybeUnbox(javaType.Type, javaType.IsNullable)
+	if !unboxed {
+		newType = core.Annotate(jt, annotation)
+	}
+
+	b.WriteIndentedString(2, newType+" "+name)
+	return imports, nil
+}

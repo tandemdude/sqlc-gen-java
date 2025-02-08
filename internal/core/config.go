@@ -10,4 +10,5 @@ type Config struct {
 	CharsPerIndentLevel int    `json:"chars_per_indent_level"`
 	NullableAnnotation  string `json:"nullable_annotation"`
 	NonNullAnnotation   string `json:"non_null_annotation"`
+	ExposeConnection    bool   `json:"expose_connection"`
 }

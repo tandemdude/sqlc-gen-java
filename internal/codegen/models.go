@@ -33,23 +33,14 @@ func BuildModelFile(config core.Config, name string, model []core.QueryReturn) (
 	body.WriteString("\n")
 	body.WriteString("public record " + strcase.ToCamel(name) + "(\n")
 	for i, ret := range model {
-		imp, jt, err := core.ResolveImportAndType(ret.JavaType.Type)
+		imps, err := body.writeParameter(ret.JavaType, ret.Name, nonNullAnnotation, nullableAnnotation)
 		if err != nil {
 			return "", nil, err
 		}
-		imports = append(imports, imp)
-
-		if ret.JavaType.IsList {
-			imports = append(imports, "java.util.List")
-			jt = "List<" + jt + ">"
+		if imps != nil {
+			imports = append(imports, imps...)
 		}
 
-		annotation := nonNullAnnotation
-		if ret.JavaType.IsNullable {
-			annotation = nullableAnnotation
-		}
-
-		body.WriteIndentedString(1, core.Annotate(jt, annotation)+" "+strcase.ToLowerCamel(ret.Name))
 		if i != len(model)-1 {
 			body.WriteString(",\n")
 		}
