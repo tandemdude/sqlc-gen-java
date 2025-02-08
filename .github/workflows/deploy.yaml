@@ -30,7 +30,7 @@ jobs:
       - name: Commit Changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Bump version for release"
+          commit_message: "chore: bump version for release"
           file_pattern: "internal/core/*.go"
 
       - name: Setup Go
