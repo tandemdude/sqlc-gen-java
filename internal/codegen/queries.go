@@ -126,7 +126,7 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 	className += "Queries"
 
 	imports := make([]string, 0)
-	imports = append(imports, "java.sql.Connection", "java.sql.SQLException", "java.sql.ResultSet", "java.sql.Types")
+	imports = append(imports, "java.sql.Connection", "java.sql.SQLException", "java.sql.ResultSet", "java.sql.Types", "java.util.Arrays")
 
 	var nonNullAnnotation string
 	if config.NonNullAnnotation != "" {
@@ -194,7 +194,7 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 				if imps != nil {
 					imports = append(imports, imps...)
 				}
-				
+
 				if i != len(q.Returns)-1 {
 					body.WriteString(",\n")
 				}
@@ -212,7 +212,7 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 			imports = append(imports, imp)
 
 			if ret.JavaType.IsList {
-				imports = append(imports, "java.util.List", "java.util.Arrays")
+				imports = append(imports, "java.util.List")
 				jt = "List<" + jt + ">"
 			}
 
