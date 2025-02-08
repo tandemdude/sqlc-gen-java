@@ -57,7 +57,7 @@ func parseQueryReturn(tcf sql_types.TypeConversionFunc, col *plugin.Column) (*co
 	}
 
 	return &core.QueryReturn{
-		Name: name,
+		Name: strcase.ToLowerCamel(name),
 		JavaType: core.JavaType{
 			SqlType:    sdk.DataType(col.Type),
 			Type:       javaType,
@@ -120,7 +120,7 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 
 			args = append(args, core.QueryArg{
 				Number: int(arg.Number),
-				Name:   arg.Column.Name,
+				Name:   strcase.ToLowerCamel(arg.Column.Name),
 				JavaType: core.JavaType{
 					SqlType:    sdk.DataType(arg.Column.Type),
 					Type:       javaType,
