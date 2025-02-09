@@ -46,7 +46,6 @@ func fixQueryPlaceholders(engine, query string) (string, error) {
 }
 
 func parseQueryReturn(tcf sql_types.TypeConversionFunc, nullableHelpers *core.NullableHelpers, col *plugin.Column) (*core.QueryReturn, error) {
-	name := strcase.ToCamel(col.Name)
 	strJavaType, err := tcf(col.Type)
 	if err != nil {
 		return nil, err
@@ -83,7 +82,7 @@ func parseQueryReturn(tcf sql_types.TypeConversionFunc, nullableHelpers *core.Nu
 	}
 
 	return &core.QueryReturn{
-		Name:     strcase.ToLowerCamel(name),
+		Name:     strcase.ToLowerCamel(col.Name),
 		JavaType: javaType,
 	}, nil
 }
