@@ -5,6 +5,11 @@ A WASM plugin for SQLC allowing the generation of Java code.
 > [!NOTE]
 > Only the `PostgreSQL` engine is supported currently. Support for `MySQL` is planned.
 
+> [!IMPORTANT]
+> The generated code makes heavy use of records, so you must be using a Java version that has record support (14+). Support
+> is not currently planned for earlier Java versions, but if you think you could implement it then feel free
+> to open a pull request.
+
 ## Configuration Values
 
 | Name                             | Type     | Required | Description                                                                                                                               |
