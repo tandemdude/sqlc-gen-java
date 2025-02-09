@@ -126,7 +126,7 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 	className += "Queries"
 
 	imports := make([]string, 0)
-	imports = append(imports, "java.sql.Connection", "java.sql.SQLException", "java.sql.ResultSet", "java.sql.Types", "java.util.Arrays")
+	imports = append(imports, "java.sql.SQLException", "java.sql.ResultSet", "java.sql.Types", "java.util.Arrays")
 
 	var nonNullAnnotation string
 	if config.NonNullAnnotation != "" {
@@ -149,14 +149,14 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 	body.WriteString("\n")
 	// Add the class declaration and constructor
 	body.WriteString("public class " + className + " {\n")
-	body.WriteIndentedString(1, "private final Connection conn;\n\n")
-	body.WriteIndentedString(1, "public "+className+"(Connection conn) {\n")
+	body.WriteIndentedString(1, "private final java.sql.Connection conn;\n\n")
+	body.WriteIndentedString(1, "public "+className+"(java.sql.Connection conn) {\n")
 	body.WriteIndentedString(2, "this.conn = conn;\n")
 	body.WriteIndentedString(1, "}\n")
 
 	if config.ExposeConnection {
 		body.WriteString("\n")
-		body.WriteIndentedString(1, "public Connection getConn() {return this.conn;}\n")
+		body.WriteIndentedString(1, "public java.sql.Connection getConn() {return this.conn;}\n")
 	}
 
 	// boilerplate methods to allow for getting null primitive values
