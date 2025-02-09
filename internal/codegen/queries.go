@@ -119,7 +119,7 @@ func completeMethodBody(sb *IndentStringBuilder, q core.Query, embeddedModels co
 	}
 }
 
-func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Query, embeddedModels core.EmbeddedModels) (string, []byte, error) {
+func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Query, embeddedModels core.EmbeddedModels, nullableHelpers core.NullableHelpers) (string, []byte, error) {
 	className := strcase.ToCamel(strings.TrimSuffix(queryFilename, ".sql"))
 	className = strings.TrimSuffix(className, "Query")
 	className = strings.TrimSuffix(className, "Queries")
@@ -161,7 +161,7 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 
 	// boilerplate methods to allow for getting null primitive values
 	body.WriteString("\n")
-	body.writeQueriesBoilerplate(nonNullAnnotation, nullableAnnotation)
+	body.writeNullableHelpers(nullableHelpers, nonNullAnnotation, nullableAnnotation)
 
 	for _, q := range queries {
 		body.WriteString("\n")

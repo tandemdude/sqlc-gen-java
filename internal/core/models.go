@@ -51,11 +51,14 @@ type QueryArg struct {
 
 // TODO - enum types
 
-var literalBindTypes = []string{"Integer", "Long", "Short", "String", "Boolean", "Float", "Double", "BigDecimal", "byte[]"}
-var typeToMethodRename = map[string]string{
-	"Integer": "Int",
-	"byte[]":  "Bytes",
-}
+var (
+	literalBindTypes   = []string{"Integer", "Long", "Short", "String", "Boolean", "Float", "Double", "BigDecimal", "byte[]"}
+	typeToMethodRename = map[string]string{
+		"Integer": "Int",
+		"byte[]":  "Bytes",
+	}
+)
+
 var typeToJavaSqlTypeConst = map[string]string{
 	"Integer": "INTEGER",
 	"Long":    "BIGINT",
@@ -137,5 +140,16 @@ type Query struct {
 	Returns      []QueryReturn
 }
 
-type Queries map[string][]Query
-type EmbeddedModels map[string][]QueryReturn
+type NullableHelpers struct {
+	Int     bool
+	Long    bool
+	Float   bool
+	Double  bool
+	Boolean bool
+	List    bool
+}
+
+type (
+	Queries        map[string][]Query
+	EmbeddedModels map[string][]QueryReturn
+)
