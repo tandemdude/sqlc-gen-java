@@ -126,7 +126,7 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 	className += "Queries"
 
 	imports := make([]string, 0)
-	imports = append(imports, "java.sql.SQLException", "java.sql.ResultSet", "java.sql.Types", "java.util.Arrays")
+	imports = append(imports, "java.sql.SQLException", "java.sql.ResultSet", "java.util.Arrays")
 
 	var nonNullAnnotation string
 	if config.NonNullAnnotation != "" {

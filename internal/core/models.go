@@ -91,7 +91,7 @@ func (q QueryArg) BindStmt() string {
 			return rawSet
 		}
 
-		return fmt.Sprintf("%s == null ? stmt.setNull(%d, Types.%s) : %s", q.Name, q.Number, javaSqlType, rawSet)
+		return fmt.Sprintf("%s == null ? stmt.setNull(%d, java.sql.Types.%s) : %s", q.Name, q.Number, javaSqlType, rawSet)
 	}
 
 	return fmt.Sprintf("stmt.setObject(%d, %s);", q.Number, q.Name)
