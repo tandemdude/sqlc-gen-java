@@ -70,19 +70,14 @@ func parseQueryReturn(tcf sql_types.TypeConversionFunc, nullableHelpers *core.Nu
 			switch strJavaType {
 			case "Integer":
 				nullableHelpers.Int = true
-				break
 			case "Long":
 				nullableHelpers.Long = true
-				break
 			case "Float":
 				nullableHelpers.Float = true
-				break
 			case "Double":
 				nullableHelpers.Double = true
-				break
 			case "Boolean":
 				nullableHelpers.Boolean = true
-				break
 			}
 		}
 	}
