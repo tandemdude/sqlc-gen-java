@@ -114,7 +114,7 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 
 	var queries core.Queries = make(map[string][]core.Query)
 	var embeddedModels core.EmbeddedModels = make(map[string][]core.QueryReturn)
-	var nullableHelpers core.NullableHelpers = core.NullableHelpers{}
+	nullableHelpers := core.NullableHelpers{}
 
 	// parse the incoming generate request into our Queries type
 	for _, query := range req.Queries {
