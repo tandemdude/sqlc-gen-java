@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/tandemdude/sqlc-gen-java/internal/inflection"
 	"regexp"
 	"slices"
 	"strconv"
@@ -16,6 +15,7 @@ import (
 	"github.com/sqlc-dev/plugin-sdk-go/sdk"
 	"github.com/tandemdude/sqlc-gen-java/internal/codegen"
 	"github.com/tandemdude/sqlc-gen-java/internal/core"
+	"github.com/tandemdude/sqlc-gen-java/internal/inflection"
 	"github.com/tandemdude/sqlc-gen-java/internal/sql_types"
 )
 
@@ -45,9 +45,8 @@ func fixQueryPlaceholders(engine, query string) (string, error) {
 	return newQuery, nil
 }
 
-func parseQueryReturn(tcf sql_types.TypeConversionFunc, col *plugin.Column) (*core.QueryReturn, error) {
-	name := strcase.ToCamel(col.Name)
-	javaType, err := tcf(col.Type)
+func parseQueryReturn(tcf sql_types.TypeConversionFunc, nullableHelpers *core.NullableHelpers, col *plugin.Column) (*core.QueryReturn, error) {
+	strJavaType, err := tcf(col.Type)
 	if err != nil {
 		return nil, err
 	}
@@ -56,14 +55,35 @@ func parseQueryReturn(tcf sql_types.TypeConversionFunc, col *plugin.Column) (*co
 		return nil, fmt.Errorf("multidimensional arrays are not supported, store JSON instead")
 	}
 
+	javaType := core.JavaType{
+		SqlType:    sdk.DataType(col.Type),
+		Type:       strJavaType,
+		IsList:     col.IsArray,
+		IsNullable: !col.NotNull,
+	}
+
+	if javaType.IsNullable {
+		if javaType.IsList {
+			nullableHelpers.List = true
+		} else {
+			switch strJavaType {
+			case "Integer":
+				nullableHelpers.Int = true
+			case "Long":
+				nullableHelpers.Long = true
+			case "Float":
+				nullableHelpers.Float = true
+			case "Double":
+				nullableHelpers.Double = true
+			case "Boolean":
+				nullableHelpers.Boolean = true
+			}
+		}
+	}
+
 	return &core.QueryReturn{
-		Name: strcase.ToLowerCamel(name),
-		JavaType: core.JavaType{
-			SqlType:    sdk.DataType(col.Type),
-			Type:       javaType,
-			IsList:     col.IsArray,
-			IsNullable: !col.NotNull,
-		},
+		Name:     strcase.ToLowerCamel(col.Name),
+		JavaType: javaType,
 	}, nil
 }
 
@@ -94,6 +114,7 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 
 	var queries core.Queries = make(map[string][]core.Query)
 	var embeddedModels core.EmbeddedModels = make(map[string][]core.QueryReturn)
+	nullableHelpers := core.NullableHelpers{}
 
 	// parse the incoming generate request into our Queries type
 	for _, query := range req.Queries {
@@ -135,7 +156,7 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 		for _, ret := range query.Columns {
 			if ret.EmbedTable == nil {
 				// normal types
-				qr, err := parseQueryReturn(typeConversionFunc, ret)
+				qr, err := parseQueryReturn(typeConversionFunc, &nullableHelpers, ret)
 				if err != nil {
 					return nil, errors.Join(errors.New("failed to parse query return column"), err)
 				}
@@ -179,7 +200,7 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 			if _, ok := embeddedModels[modelName]; !ok {
 				var modelParams []core.QueryReturn
 				for _, c := range table.Columns {
-					qr, err := parseQueryReturn(typeConversionFunc, c)
+					qr, err := parseQueryReturn(typeConversionFunc, &nullableHelpers, c)
 					if err != nil {
 						return nil, errors.Join(errors.New("failed to parse query return column"), err)
 					}
@@ -227,7 +248,7 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 		slices.SortFunc(queries[file], func(a, b core.Query) int { return strings.Compare(a.MethodName, b.MethodName) })
 
 		// build the queries file contents
-		fileName, fileContents, err := codegen.BuildQueriesFile(conf, file, queries[file], embeddedModels)
+		fileName, fileContents, err := codegen.BuildQueriesFile(conf, file, queries[file], embeddedModels, nullableHelpers)
 		if err != nil {
 			return nil, err
 		}

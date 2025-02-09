@@ -2,9 +2,10 @@ package codegen
 
 import (
 	"fmt"
-	"github.com/tandemdude/sqlc-gen-java/internal/core"
 	"os"
 	"strings"
+
+	"github.com/tandemdude/sqlc-gen-java/internal/core"
 )
 
 type IndentStringBuilder struct {
@@ -35,36 +36,48 @@ func (b *IndentStringBuilder) writeSqlcHeader() {
 	b.WriteString("//   sqlc-gen-java " + core.PluginVersion + "\n")
 }
 
-func (b *IndentStringBuilder) writeQueriesBoilerplate(nonNullAnnotation, nullableAnnotation string) {
-	methodTypes := [][]string{
-		{"Integer", "Int"},
-		{"Long", "Long"},
-		{"Float", "Float"},
-		{"Double", "Double"},
-		{"Boolean", "Boolean"},
+type nullableHelper struct {
+	ShouldOutput bool
+	ReturnType   string
+	ArgType      string
+}
+
+func (b *IndentStringBuilder) writeNullableHelpers(nullableHelpers core.NullableHelpers, nonNullAnnotation, nullableAnnotation string) {
+	methodTypes := []nullableHelper{
+		{nullableHelpers.Int, "Integer", "Int"},
+		{nullableHelpers.Long, "Long", "Long"},
+		{nullableHelpers.Float, "Float", "Float"},
+		{nullableHelpers.Double, "Double", "Double"},
+		{nullableHelpers.Boolean, "Boolean", "Boolean"},
 	}
 
 	for _, methodType := range methodTypes {
+		if !methodType.ShouldOutput {
+			continue
+		}
+
 		b.WriteIndentedString(1, fmt.Sprintf(
 			"private static %s get%s(%s rs, int col) throws SQLException {\n",
-			core.Annotate(methodType[0], nullableAnnotation),
-			methodType[1],
+			core.Annotate(methodType.ReturnType, nullableAnnotation),
+			methodType.ArgType,
 			core.Annotate("ResultSet", nonNullAnnotation),
 		))
 		b.WriteIndentedString(2, fmt.Sprintf(
 			"var colVal = rs.get%s(col); return rs.wasNull() ? null : colVal;\n",
-			methodType[1],
+			methodType.ArgType,
 		))
 		b.WriteIndentedString(1, "}\n")
 	}
 
-	b.WriteIndentedString(1, fmt.Sprintf(
-		"private static <T> %s getList(%s rs, int col, Class<T[]> as) throws SQLException {\n",
-		core.Annotate("List<T>", nullableAnnotation),
-		core.Annotate("ResultSet", nonNullAnnotation),
-	))
-	b.WriteIndentedString(2, "var colVal = rs.getArray(col); return colVal == null ? null : Arrays.asList(as.cast(colVal.getArray()));\n")
-	b.WriteIndentedString(1, "}\n")
+	if nullableHelpers.List {
+		b.WriteIndentedString(1, fmt.Sprintf(
+			"private static <T> %s getList(%s rs, int col, Class<T[]> as) throws SQLException {\n",
+			core.Annotate("List<T>", nullableAnnotation),
+			core.Annotate("ResultSet", nonNullAnnotation),
+		))
+		b.WriteIndentedString(2, "var colVal = rs.getArray(col); return colVal == null ? null : Arrays.asList(as.cast(colVal.getArray()));\n")
+		b.WriteIndentedString(1, "}\n")
+	}
 }
 
 func (b *IndentStringBuilder) writeParameter(javaType core.JavaType, name, nonNullAnnotation, nullableAnnotation string) ([]string, error) {
