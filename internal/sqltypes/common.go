@@ -1,4 +1,4 @@
-package sql_types
+package sqltypes
 
 import "github.com/sqlc-dev/plugin-sdk-go/plugin"
 

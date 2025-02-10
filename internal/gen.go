@@ -16,7 +16,7 @@ import (
 	"github.com/tandemdude/sqlc-gen-java/internal/codegen"
 	"github.com/tandemdude/sqlc-gen-java/internal/core"
 	"github.com/tandemdude/sqlc-gen-java/internal/inflection"
-	"github.com/tandemdude/sqlc-gen-java/internal/sql_types"
+	"github.com/tandemdude/sqlc-gen-java/internal/sqltypes"
 )
 
 var (
@@ -45,7 +45,7 @@ func fixQueryPlaceholders(engine, query string) (string, error) {
 	return newQuery, nil
 }
 
-func parseQueryReturn(tcf sql_types.TypeConversionFunc, nullableHelpers *core.NullableHelpers, col *plugin.Column) (*core.QueryReturn, error) {
+func parseQueryReturn(tcf sqltypes.TypeConversionFunc, nullableHelpers *core.NullableHelpers, col *plugin.Column) (*core.QueryReturn, error) {
 	strJavaType, err := tcf(col.Type)
 	if err != nil {
 		return nil, err
@@ -104,10 +104,10 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 		return nil, fmt.Errorf("'package' is a required configuration option")
 	}
 
-	var typeConversionFunc sql_types.TypeConversionFunc
+	var typeConversionFunc sqltypes.TypeConversionFunc
 	switch req.Settings.Engine {
 	case "postgresql":
-		typeConversionFunc = sql_types.PostgresTypeToJavaType
+		typeConversionFunc = sqltypes.PostgresTypeToJavaType
 	default:
 		return nil, fmt.Errorf("engine %q is not supported", req.Settings.Engine)
 	}
