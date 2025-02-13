@@ -69,7 +69,7 @@ var typeToJavaSqlTypeConst = map[string]string{
 	"Double":  "DOUBLE",
 }
 
-func (q QueryArg) BindStmt() string {
+func (q QueryArg) BindStmt(engine string) string {
 	typeOnly := q.JavaType.Type[strings.LastIndex(q.JavaType.Type, ".")+1:]
 
 	if q.JavaType.IsList {
@@ -96,6 +96,14 @@ func (q QueryArg) BindStmt() string {
 	}
 
 	if q.JavaType.IsEnum {
+		// postgres doesn't like it if you setString an enum directly unfortunately
+		if engine == "postgresql" {
+			if q.JavaType.IsNullable {
+				return fmt.Sprintf("stmt.setObject(%d, %s == null ? null : %s.getValue(), java.sql.Types.OTHER);", q.Number, q.Name, q.Name)
+			}
+			return fmt.Sprintf("stmt.setObject(%d, %s.getValue(), java.sql.Types.OTHER);", q.Number, q.Name)
+		}
+
 		if q.JavaType.IsNullable {
 			return fmt.Sprintf("stmt.setString(%d, %s == null ? null : %s.getValue());", q.Number, q.Name, q.Name)
 		}

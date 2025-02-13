@@ -119,7 +119,7 @@ func completeMethodBody(sb *IndentStringBuilder, q core.Query, embeddedModels co
 	}
 }
 
-func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Query, embeddedModels core.EmbeddedModels, nullableHelpers core.NullableHelpers) (string, []byte, error) {
+func BuildQueriesFile(engine string, config core.Config, queryFilename string, queries []core.Query, embeddedModels core.EmbeddedModels, nullableHelpers core.NullableHelpers) (string, []byte, error) {
 	className := strcase.ToCamel(strings.TrimSuffix(queryFilename, ".sql"))
 	className = strings.TrimSuffix(className, "Query")
 	className = strings.TrimSuffix(className, "Queries")
@@ -263,7 +263,7 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 					body.WriteString(",\n")
 				}
 
-				methodBody.WriteIndentedString(2, arg.BindStmt()+"\n")
+				methodBody.WriteIndentedString(2, arg.BindStmt(engine)+"\n")
 			}
 			body.WriteString("\n")
 			body.WriteIndentedString(1, ") throws SQLException {\n")
