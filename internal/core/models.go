@@ -41,6 +41,7 @@ type JavaType struct {
 	Type       string
 	IsList     bool
 	IsNullable bool
+	IsEnum     bool
 }
 
 type QueryArg struct {
@@ -94,6 +95,10 @@ func (q QueryArg) BindStmt() string {
 		return fmt.Sprintf("%s == null ? stmt.setNull(%d, java.sql.Types.%s) : %s", q.Name, q.Number, javaSqlType, rawSet)
 	}
 
+	if q.JavaType.IsEnum {
+		return fmt.Sprintf("stmt.setString(%d, %s.getValue());", q.Number, q.Name)
+	}
+
 	return fmt.Sprintf("stmt.setObject(%d, %s);", q.Number, q.Name)
 }
 
@@ -107,7 +112,6 @@ func (q QueryReturn) ResultStmt(number int) string {
 	typeOnly := q.JavaType.Type[strings.LastIndex(q.JavaType.Type, ".")+1:]
 
 	if q.JavaType.IsList {
-		// TODO - check for nullable array support
 		if q.JavaType.IsNullable {
 			return fmt.Sprintf("getList(results, %d, %s[].class)", number, typeOnly)
 		}
@@ -125,6 +129,13 @@ func (q QueryReturn) ResultStmt(number int) string {
 			return fmt.Sprintf("get%s(results, %d)", typeOnly, number)
 		}
 		return fmt.Sprintf("results.get%s(%d)", typeOnly, number)
+	}
+
+	if q.JavaType.IsEnum {
+		if q.JavaType.IsNullable {
+			return fmt.Sprintf("Optional.ofNullable(results.getSting(%d)).map(%s::valueOf).orElse(null)", number, typeOnly)
+		}
+		return fmt.Sprintf("%s.valueOf(results.getString(%d))", typeOnly, number)
 	}
 
 	return fmt.Sprintf("results.getObject(%d, %s.class)", number, typeOnly)
@@ -149,7 +160,15 @@ type NullableHelpers struct {
 	List    bool
 }
 
+type Enum struct {
+	Schema string
+	Name   string
+	Values []string
+}
+
 type (
 	Queries        map[string][]Query
 	EmbeddedModels map[string][]QueryReturn
+	// Enums is a map of "schema_name.enum_name" to enum value.
+	Enums map[string]Enum
 )

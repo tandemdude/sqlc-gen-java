@@ -25,8 +25,57 @@ var (
 	postgresPlaceholderRegexp  = regexp.MustCompile(`\B\$\d+\b`)
 )
 
-func fixQueryPlaceholders(engine, query string) (string, error) {
-	if engine != "postgresql" {
+type JavaGenerator struct {
+	req  *plugin.GenerateRequest
+	conf core.Config
+
+	queries core.Queries
+	models  core.EmbeddedModels
+
+	enums     core.Enums
+	usedEnums []string
+
+	typeConversionFunc sqltypes.TypeConversionFunc
+	nullableHelpers    core.NullableHelpers
+}
+
+func NewJavaGenerator(req *plugin.GenerateRequest) (*JavaGenerator, error) {
+	conf := core.Config{
+		IndentChar:          defaultIndentChar,
+		CharsPerIndentLevel: defaultCharsPerIndentLevel,
+		NullableAnnotation:  "org.jspecify.annotations.Nullable",
+		NonNullAnnotation:   "org.jspecify.annotations.NonNull",
+	}
+	if len(req.PluginOptions) > 0 {
+		if err := json.Unmarshal(req.PluginOptions, &conf); err != nil {
+			return nil, err
+		}
+	}
+
+	var typeConversionFunc sqltypes.TypeConversionFunc
+	switch req.Settings.Engine {
+	case "postgresql":
+		typeConversionFunc = sqltypes.PostgresTypeToJavaType
+	case "mysql":
+		typeConversionFunc = sqltypes.MysqlTypeToJavaType
+	default:
+		return nil, fmt.Errorf("engine %q is not supported", req.Settings.Engine)
+	}
+
+	return &JavaGenerator{
+		req:                req,
+		conf:               conf,
+		queries:            make(core.Queries),
+		models:             make(core.EmbeddedModels),
+		enums:              make(core.Enums),
+		usedEnums:          make([]string, 0),
+		typeConversionFunc: typeConversionFunc,
+		nullableHelpers:    core.NullableHelpers{},
+	}, nil
+}
+
+func (gen *JavaGenerator) fixQueryPlaceholders(query string) (string, error) {
+	if gen.req.Settings.Engine != "postgresql" {
 		return query, nil
 	}
 
@@ -45,10 +94,23 @@ func fixQueryPlaceholders(engine, query string) (string, error) {
 	return newQuery, nil
 }
 
-func parseQueryReturn(tcf sqltypes.TypeConversionFunc, nullableHelpers *core.NullableHelpers, col *plugin.Column) (*core.QueryReturn, error) {
-	strJavaType, err := tcf(col.Type)
+func (gen *JavaGenerator) parseQueryReturn(col *plugin.Column) (*core.QueryReturn, error) {
+	isEnum := false
+	strJavaType, err := gen.typeConversionFunc(col.Type)
 	if err != nil {
-		return nil, err
+		schema := col.Table.Schema
+		if schema == "" {
+			schema = gen.req.Catalog.DefaultSchema
+		}
+
+		enumQualifiedName := fmt.Sprintf("%s.%s", schema, col.Type.Name)
+		if _, ok := gen.enums[enumQualifiedName]; !ok {
+			return nil, err
+		}
+
+		gen.usedEnums = append(gen.usedEnums, enumQualifiedName)
+		strJavaType = gen.conf.Package + ".enums." + codegen.EnumClassName(enumQualifiedName, gen.req.Catalog.DefaultSchema)
+		isEnum = true
 	}
 
 	if col.ArrayDims > 1 {
@@ -60,23 +122,24 @@ func parseQueryReturn(tcf sqltypes.TypeConversionFunc, nullableHelpers *core.Nul
 		Type:       strJavaType,
 		IsList:     col.IsArray,
 		IsNullable: !col.NotNull,
+		IsEnum:     isEnum,
 	}
 
 	if javaType.IsNullable {
 		if javaType.IsList {
-			nullableHelpers.List = true
+			gen.nullableHelpers.List = true
 		} else {
 			switch strJavaType {
 			case "Integer":
-				nullableHelpers.Int = true
+				gen.nullableHelpers.Int = true
 			case "Long":
-				nullableHelpers.Long = true
+				gen.nullableHelpers.Long = true
 			case "Float":
-				nullableHelpers.Float = true
+				gen.nullableHelpers.Float = true
 			case "Double":
-				nullableHelpers.Double = true
+				gen.nullableHelpers.Double = true
 			case "Boolean":
-				nullableHelpers.Boolean = true
+				gen.nullableHelpers.Boolean = true
 			}
 		}
 	}
@@ -87,39 +150,22 @@ func parseQueryReturn(tcf sqltypes.TypeConversionFunc, nullableHelpers *core.Nul
 	}, nil
 }
 
-func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.GenerateResponse, error) {
-	conf := core.Config{
-		IndentChar:          defaultIndentChar,
-		CharsPerIndentLevel: defaultCharsPerIndentLevel,
-		NullableAnnotation:  "org.jspecify.annotations.Nullable",
-		NonNullAnnotation:   "org.jspecify.annotations.NonNull",
-	}
-	if len(req.PluginOptions) > 0 {
-		if err := json.Unmarshal(req.PluginOptions, &conf); err != nil {
-			return nil, err
+func (gen *JavaGenerator) Run() (*plugin.GenerateResponse, error) {
+	// parse out the enums from the generate request
+	for _, schema := range gen.req.Catalog.Schemas {
+		for _, enum := range schema.Enums {
+			gen.enums[fmt.Sprintf("%s.%s", schema.Name, enum.Name)] = core.Enum{
+				Schema: schema.Name,
+				Name:   enum.Name,
+				Values: enum.Vals,
+			}
 		}
 	}
 
-	if conf.Package == "" {
-		return nil, fmt.Errorf("'package' is a required configuration option")
-	}
-
-	var typeConversionFunc sqltypes.TypeConversionFunc
-	switch req.Settings.Engine {
-	case "postgresql":
-		typeConversionFunc = sqltypes.PostgresTypeToJavaType
-	default:
-		return nil, fmt.Errorf("engine %q is not supported", req.Settings.Engine)
-	}
-
-	var queries core.Queries = make(map[string][]core.Query)
-	var embeddedModels core.EmbeddedModels = make(map[string][]core.QueryReturn)
-	nullableHelpers := core.NullableHelpers{}
-
 	// parse the incoming generate request into our Queries type
-	for _, query := range req.Queries {
-		if _, ok := queries[query.Filename]; !ok {
-			queries[query.Filename] = make([]core.Query, 0)
+	for _, query := range gen.req.Queries {
+		if _, ok := gen.queries[query.Filename]; !ok {
+			gen.queries[query.Filename] = make([]core.Query, 0)
 		}
 
 		command, err := core.QueryCommandFor(query.Cmd)
@@ -130,9 +176,23 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 		// TODO - enum types? other specialness?
 		args := make([]core.QueryArg, 0)
 		for _, arg := range query.Params {
-			javaType, err := typeConversionFunc(arg.Column.Type)
+			isEnum := false
+			javaType, err := gen.typeConversionFunc(arg.Column.Type)
 			if err != nil {
-				return nil, err
+				// check if this is an enum type
+				schema := arg.Column.Table.Schema
+				if schema == "" {
+					schema = gen.req.Catalog.DefaultSchema
+				}
+
+				enumQualifiedName := fmt.Sprintf("%s.%s", schema, arg.Column.Type.Name)
+				if _, ok := gen.enums[enumQualifiedName]; !ok {
+					return nil, err
+				}
+
+				gen.usedEnums = append(gen.usedEnums, enumQualifiedName)
+				javaType = gen.conf.Package + ".enums." + codegen.EnumClassName(enumQualifiedName, gen.req.Catalog.DefaultSchema)
+				isEnum = true
 			}
 
 			if arg.Column.ArrayDims > 1 {
@@ -145,8 +205,9 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 				JavaType: core.JavaType{
 					SqlType:    sdk.DataType(arg.Column.Type),
 					Type:       javaType,
-					IsList:     arg.Column.IsArray, // TODO check this will always be present
+					IsList:     arg.Column.IsArray,
 					IsNullable: !arg.Column.NotNull,
+					IsEnum:     isEnum,
 				},
 			})
 		}
@@ -156,7 +217,7 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 		for _, ret := range query.Columns {
 			if ret.EmbedTable == nil {
 				// normal types
-				qr, err := parseQueryReturn(typeConversionFunc, &nullableHelpers, ret)
+				qr, err := gen.parseQueryReturn(ret)
 				if err != nil {
 					return nil, errors.Join(errors.New("failed to parse query return column"), err)
 				}
@@ -169,12 +230,12 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 			var table *plugin.Table
 
 			// find the catalog entry for the embedded table
-			schema := req.Catalog.DefaultSchema
+			schema := gen.req.Catalog.DefaultSchema
 			if ret.EmbedTable.Schema != "" {
 				schema = ret.EmbedTable.Schema
 			}
 
-			for _, s := range req.Catalog.Schemas {
+			for _, s := range gen.req.Catalog.Schemas {
 				if s.Name != schema {
 					continue
 				}
@@ -192,15 +253,15 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 
 			// TODO - fix type-writer to only exclude items that aren't part of the package name
 			modelName := strcase.ToCamel(table.Rel.Name)
-			if !conf.EmitExactTableNames {
-				modelName = strcase.ToCamel(inflection.Singular(table.Rel.Name, conf.InflectionExcludeTableNames))
+			if !gen.conf.EmitExactTableNames {
+				modelName = strcase.ToCamel(inflection.Singular(table.Rel.Name, gen.conf.InflectionExcludeTableNames))
 			}
 
 			// check if we already have an entry for this model
-			if _, ok := embeddedModels[modelName]; !ok {
+			if _, ok := gen.models[modelName]; !ok {
 				var modelParams []core.QueryReturn
 				for _, c := range table.Columns {
-					qr, err := parseQueryReturn(typeConversionFunc, &nullableHelpers, c)
+					qr, err := gen.parseQueryReturn(c)
 					if err != nil {
 						return nil, errors.Join(errors.New("failed to parse query return column"), err)
 					}
@@ -208,7 +269,7 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 					modelParams = append(modelParams, *qr)
 				}
 
-				embeddedModels[modelName] = modelParams
+				gen.models[modelName] = modelParams
 			}
 
 			returns = append(returns, core.QueryReturn{
@@ -216,7 +277,7 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 				JavaType: core.JavaType{
 					SqlType: "",
 					// we don't need to specify package here - models file will be generated in the same location as the queries file
-					Type:       conf.Package + ".models." + modelName,
+					Type:       gen.conf.Package + ".models." + modelName,
 					IsList:     false, // TODO - check: this *should* be impossible
 					IsNullable: false, // TODO - check: empty record should be output instead
 				},
@@ -225,12 +286,12 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 		}
 
 		// TODO - look into fixing ? operator for postgresql JSONB operations maybe
-		newQueryText, err := fixQueryPlaceholders(req.Settings.Engine, query.Text)
+		newQueryText, err := gen.fixQueryPlaceholders(query.Text)
 		if err != nil {
 			return nil, err
 		}
 
-		queries[query.Filename] = append(queries[query.Filename], core.Query{
+		gen.queries[query.Filename] = append(gen.queries[query.Filename], core.Query{
 			RawCommand:   query.Cmd,
 			Command:      command,
 			Text:         newQueryText,
@@ -243,12 +304,12 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 	}
 
 	outputFiles := make([]*plugin.File, 0)
-	// order the queries for each file alphabetically
-	for file := range queries {
-		slices.SortFunc(queries[file], func(a, b core.Query) int { return strings.Compare(a.MethodName, b.MethodName) })
+	for file := range gen.queries {
+		// order the queries for each file alphabetically
+		slices.SortFunc(gen.queries[file], func(a, b core.Query) int { return strings.Compare(a.MethodName, b.MethodName) })
 
 		// build the queries file contents
-		fileName, fileContents, err := codegen.BuildQueriesFile(conf, file, queries[file], embeddedModels, nullableHelpers)
+		fileName, fileContents, err := codegen.BuildQueriesFile(gen.conf, file, gen.queries[file], gen.models, gen.nullableHelpers)
 		if err != nil {
 			return nil, err
 		}
@@ -258,8 +319,27 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 		})
 	}
 
-	for modelName, model := range embeddedModels {
-		fileName, fileContents, err := codegen.BuildModelFile(conf, modelName, model)
+	for modelName, model := range gen.models {
+		fileName, fileContents, err := codegen.BuildModelFile(gen.conf, modelName, model)
+		if err != nil {
+			return nil, err
+		}
+		outputFiles = append(outputFiles, &plugin.File{
+			Name:     fileName,
+			Contents: fileContents,
+		})
+	}
+
+	// remove duplicate enum entries
+	slices.Sort(gen.usedEnums)
+	slices.Compact(gen.usedEnums)
+	for _, qualName := range gen.usedEnums {
+		if qualName == "" {
+			continue
+		}
+
+		enum := gen.enums[qualName]
+		fileName, fileContents, err := codegen.BuildEnumFile(gen.req.Settings.Engine, gen.conf, qualName, enum, gen.req.Catalog.DefaultSchema)
 		if err != nil {
 			return nil, err
 		}
@@ -270,4 +350,14 @@ func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.Generat
 	}
 
 	return &plugin.GenerateResponse{Files: outputFiles}, nil
+}
+
+// TODO - check if the context is actually important for anything
+func Generate(ctx context.Context, req *plugin.GenerateRequest) (*plugin.GenerateResponse, error) {
+	jg, err := NewJavaGenerator(req)
+	if err != nil {
+		return nil, err
+	}
+
+	return jg.Run()
 }
