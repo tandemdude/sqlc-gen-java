@@ -238,7 +238,11 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 		}
 
 		methodBody := NewIndentStringBuilder(config.IndentChar, config.CharsPerIndentLevel)
-		methodBody.WriteIndentedString(2, "var stmt = conn.prepareStatement("+q.MethodName+");\n")
+		if q.Command == core.ExecResult {
+			methodBody.WriteIndentedString(2, "var stmt = conn.prepareStatement("+q.MethodName+", java.sql.Statement.RETURN_GENERATED_KEYS);\n")
+		} else {
+			methodBody.WriteIndentedString(2, "var stmt = conn.prepareStatement("+q.MethodName+");\n")
+		}
 
 		// write the method signature
 		body.WriteString("\n")
