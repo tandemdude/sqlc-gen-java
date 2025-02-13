@@ -63,7 +63,7 @@ func BuildEnumFile(engine string, conf core.Config, qualName string, enum core.E
 	sb.WriteIndentedString(1, "public String getValue() {\n")
 	sb.WriteIndentedString(2, "return this.value;")
 	sb.WriteIndentedString(1, "}\n\n")
-	sb.WriteIndentedString(1, "public static fromValue(final String value) {\n")
+	sb.WriteIndentedString(1, "public static "+className+" fromValue(final String value) {\n")
 	sb.WriteIndentedString(2, "for (var v : "+className+".values()) {\n")
 	sb.WriteIndentedString(3, "if (v.value.equals(value)) return v;\n")
 	sb.WriteIndentedString(2, "}\n")
