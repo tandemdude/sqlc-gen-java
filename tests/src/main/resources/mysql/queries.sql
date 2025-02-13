@@ -52,3 +52,9 @@ WHERE book_id = ?;
 -- name: DeleteAuthorBeforeYear :exec
 DELETE FROM books
 WHERE yr < ? AND author_id = ?;
+
+-- name: CreateEnumRow :execresult
+INSERT INTO nullable_enum_test (enum_field) VALUES (?);
+
+-- name: GetEnumRow :one
+SELECT * FROM nullable_enum_test WHERE t_id = ?;
