@@ -126,7 +126,7 @@ func BuildQueriesFile(engine string, config core.Config, queryFilename string, q
 	className += "Queries"
 
 	imports := make([]string, 0)
-	imports = append(imports, "java.sql.SQLException", "java.sql.ResultSet", "java.util.Arrays")
+	imports = append(imports, "java.sql.SQLException", "java.sql.ResultSet", "java.util.Arrays", "javax.annotation.processing.Generated")
 
 	var nonNullAnnotation string
 	if config.NonNullAnnotation != "" {
@@ -148,6 +148,7 @@ func BuildQueriesFile(engine string, config core.Config, queryFilename string, q
 	body := NewIndentStringBuilder(config.IndentChar, config.CharsPerIndentLevel)
 	body.WriteString("\n")
 	// Add the class declaration and constructor
+	body.WriteString("@Generated(\"io.github.tandemdude.sqlc-gen-java\")\n")
 	body.WriteString("public class " + className + " {\n")
 	body.WriteIndentedString(1, "private final java.sql.Connection conn;\n\n")
 	body.WriteIndentedString(1, "public "+className+"(java.sql.Connection conn) {\n")

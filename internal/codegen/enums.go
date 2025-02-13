@@ -37,6 +37,9 @@ func BuildEnumFile(engine string, conf core.Config, qualName string, enum core.E
 	sb.WriteString("\n")
 	sb.WriteString("package " + conf.Package + ".enums;\n")
 	sb.WriteString("\n")
+	sb.WriteString("import javax.annotation.processing.Generated;\n")
+	sb.WriteString("\n")
+	sb.WriteString("@Generated(\"io.github.tandemdude.sqlc-gen-java\")\n")
 	sb.WriteString("public enum " + className + " {\n")
 
 	if engine == "mysql" {

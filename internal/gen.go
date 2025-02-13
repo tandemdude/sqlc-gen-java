@@ -309,7 +309,7 @@ func (gen *JavaGenerator) Run() (*plugin.GenerateResponse, error) {
 		slices.SortFunc(gen.queries[file], func(a, b core.Query) int { return strings.Compare(a.MethodName, b.MethodName) })
 
 		// build the queries file contents
-		fileName, fileContents, err := codegen.BuildQueriesFile(gen.conf, file, gen.queries[file], gen.models, gen.nullableHelpers)
+		fileName, fileContents, err := codegen.BuildQueriesFile(gen.req.Settings.Engine, gen.conf, file, gen.queries[file], gen.models, gen.nullableHelpers)
 		if err != nil {
 			return nil, err
 		}
