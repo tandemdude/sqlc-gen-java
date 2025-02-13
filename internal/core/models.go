@@ -146,7 +146,7 @@ func (q QueryReturn) ResultStmt(number int) string {
 		if q.JavaType.IsNullable {
 			return fmt.Sprintf("Optional.ofNullable(results.getString(%d)).map(%s::fromValue).orElse(null)", number, typeOnly)
 		}
-		return fmt.Sprintf("%s.valueOf(results.getString(%d))", typeOnly, number)
+		return fmt.Sprintf("%s.fromValue(results.getString(%d))", typeOnly, number)
 	}
 
 	return fmt.Sprintf("results.getObject(%d, %s.class)", number, typeOnly)
