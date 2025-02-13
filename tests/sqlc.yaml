@@ -3,7 +3,7 @@ plugins:
   - name: java
     wasm:
       url: file://sqlc-gen-java.wasm
-      sha256: a2211754142fd64604a7b5b2cbec985f685830ca07db860974a7996f6c06fb5b
+      sha256: 1e30725cfd253e18486ebff9ba7eea481bc2680d946ecae85d308de39485b921
 sql:
   - schema: src/main/resources/postgres/schema.sql
     queries: src/main/resources/postgres/queries.sql
@@ -13,3 +13,11 @@ sql:
         plugin: java
         options:
           package: io.github.tandemdude.sgj.postgres
+  - schema: src/main/resources/mysql/schema.sql
+    queries: src/main/resources/mysql/queries.sql
+    engine: mysql
+    codegen:
+      - out: src/main/java/io/github/tandemdude/sgj/mysql
+        plugin: java
+        options:
+          package: io.github.tandemdude.sgj.mysql

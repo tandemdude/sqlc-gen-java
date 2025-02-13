@@ -28,9 +28,12 @@ func BuildModelFile(config core.Config, name string, model []core.QueryReturn) (
 	header.WriteString("\n")
 	header.WriteString("package " + config.Package + ".models;\n")
 	header.WriteString("\n")
+	header.WriteString("import javax.annotation.processing.Generated;\n")
+	header.WriteString("\n")
 
 	body := NewIndentStringBuilder(config.IndentChar, config.CharsPerIndentLevel)
 	body.WriteString("\n")
+	body.WriteString("@Generated(\"io.github.tandemdude.sqlc-gen-java\")\n")
 	body.WriteString("public record " + strcase.ToCamel(name) + "(\n")
 	for i, ret := range model {
 		imps, err := body.writeParameter(ret.JavaType, ret.Name, nonNullAnnotation, nullableAnnotation)

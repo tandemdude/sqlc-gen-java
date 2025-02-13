@@ -62,12 +62,10 @@ You should ensure that the `sha256` value in your `sqlc.yaml` is correct for thi
 
 ## Planned Features
 
-- `MySQL` support
 - `SQLite` support
 - Improved parameter naming
 
 **Tentative:**
 
 - r2dbc support
-- Support for PostgreSQL enum types
 - copyfrom support where possible [ref](https://www.baeldung.com/jdbc-batch-processing)

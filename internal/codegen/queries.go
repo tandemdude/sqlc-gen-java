@@ -119,14 +119,14 @@ func completeMethodBody(sb *IndentStringBuilder, q core.Query, embeddedModels co
 	}
 }
 
-func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Query, embeddedModels core.EmbeddedModels, nullableHelpers core.NullableHelpers) (string, []byte, error) {
+func BuildQueriesFile(engine string, config core.Config, queryFilename string, queries []core.Query, embeddedModels core.EmbeddedModels, nullableHelpers core.NullableHelpers) (string, []byte, error) {
 	className := strcase.ToCamel(strings.TrimSuffix(queryFilename, ".sql"))
 	className = strings.TrimSuffix(className, "Query")
 	className = strings.TrimSuffix(className, "Queries")
 	className += "Queries"
 
 	imports := make([]string, 0)
-	imports = append(imports, "java.sql.SQLException", "java.sql.ResultSet", "java.util.Arrays")
+	imports = append(imports, "java.sql.SQLException", "java.sql.ResultSet", "java.util.Arrays", "javax.annotation.processing.Generated")
 
 	var nonNullAnnotation string
 	if config.NonNullAnnotation != "" {
@@ -148,6 +148,7 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 	body := NewIndentStringBuilder(config.IndentChar, config.CharsPerIndentLevel)
 	body.WriteString("\n")
 	// Add the class declaration and constructor
+	body.WriteString("@Generated(\"io.github.tandemdude.sqlc-gen-java\")\n")
 	body.WriteString("public class " + className + " {\n")
 	body.WriteIndentedString(1, "private final java.sql.Connection conn;\n\n")
 	body.WriteIndentedString(1, "public "+className+"(java.sql.Connection conn) {\n")
@@ -238,7 +239,11 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 		}
 
 		methodBody := NewIndentStringBuilder(config.IndentChar, config.CharsPerIndentLevel)
-		methodBody.WriteIndentedString(2, "var stmt = conn.prepareStatement("+q.MethodName+");\n")
+		if q.Command == core.ExecResult {
+			methodBody.WriteIndentedString(2, "var stmt = conn.prepareStatement("+q.MethodName+", java.sql.Statement.RETURN_GENERATED_KEYS);\n")
+		} else {
+			methodBody.WriteIndentedString(2, "var stmt = conn.prepareStatement("+q.MethodName+");\n")
+		}
 
 		// write the method signature
 		body.WriteString("\n")
@@ -259,7 +264,7 @@ func BuildQueriesFile(config core.Config, queryFilename string, queries []core.Q
 					body.WriteString(",\n")
 				}
 
-				methodBody.WriteIndentedString(2, arg.BindStmt()+"\n")
+				methodBody.WriteIndentedString(2, arg.BindStmt(engine)+"\n")
 			}
 			body.WriteString("\n")
 			body.WriteIndentedString(1, ") throws SQLException {\n")

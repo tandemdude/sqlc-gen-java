@@ -1,6 +1,6 @@
 package io.github.tandemdude.sgj.postgres;
 
-import org.jspecify.annotations.NonNull;
+import io.github.tandemdude.sgj.postgres.enums.Mood;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -32,7 +32,7 @@ public class TestQueries {
 
     @Test
     @DisplayName("GetUser returns empty optional when no records found")
-    public void getUserReturnsEmptyOptionalNoRecordsFound() throws Exception {
+    void getUserReturnsEmptyOptionalNoRecordsFound() throws Exception {
         try (var conn = getConn()) {
             var q = new Queries(conn);
 
@@ -42,7 +42,7 @@ public class TestQueries {
 
     @Test
     @DisplayName("GetUser returns populated optional when record found")
-    public void getUserReturnsPopulatedOptionalRecordFound() throws Exception {
+    void getUserReturnsPopulatedOptionalRecordFound() throws Exception {
         try (var conn = getConn()) {
             var q = new Queries(conn);
 
@@ -59,7 +59,7 @@ public class TestQueries {
 
     @Test
     @DisplayName("ListUsers returns empty list when no records found")
-    public void listUsersReturnsEmptyListNoRecordsFound() throws Exception {
+    void listUsersReturnsEmptyListNoRecordsFound() throws Exception {
         try (var conn = getConn()) {
             var q = new Queries(conn);
 
@@ -69,7 +69,7 @@ public class TestQueries {
 
     @Test
     @DisplayName("ListUsers returns populated list when records found")
-    public void listUsersReturnsPopulatedListRecordsFound() throws Exception {
+    void listUsersReturnsPopulatedListRecordsFound() throws Exception {
         try (var conn = getConn()) {
             var q = new Queries(conn);
 
@@ -84,7 +84,7 @@ public class TestQueries {
 
     @Test
     @DisplayName("GetUserDup throws error when multiple records returned")
-    public void getUserDupReturnsErrorWhenMultipleRecordsReturned() throws Exception {
+    void getUserDupReturnsErrorWhenMultipleRecordsReturned() throws Exception {
         try (var conn = getConn()) {
             var q = new Queries(conn);
 
@@ -99,7 +99,7 @@ public class TestQueries {
 
     @Test
     @DisplayName("CreateMessage processes input list correctly")
-    public void createMessageProcessesInputListCorrectly() throws Exception {
+    void createMessageProcessesInputListCorrectly() throws Exception {
         try (var conn = getConn()) {
             var q = new Queries(conn);
 
@@ -114,7 +114,7 @@ public class TestQueries {
 
     @Test
     @DisplayName("GetMessage works when attachments is null")
-    public void getMessageWorksWhenAttachmentsIsNull() throws Exception {
+    void getMessageWorksWhenAttachmentsIsNull() throws Exception {
         try (var conn = getConn()) {
             var q = new Queries(conn);
 
@@ -129,7 +129,7 @@ public class TestQueries {
 
     @Test
     @DisplayName("GetUserAndToken returns embedded objects")
-    public void getUserAndTokenReturnsEmbeddedObjects() throws Exception {
+    void getUserAndTokenReturnsEmbeddedObjects() throws Exception {
         try (var conn = getConn()) {
             var q = new Queries(conn);
 
@@ -146,7 +146,7 @@ public class TestQueries {
 
     @Test
     @DisplayName("GetBytes returns same data as during creation")
-    public void getBytesReturnsSameDataAsDuringCreation() throws Exception {
+    void getBytesReturnsSameDataAsDuringCreation() throws Exception {
         try (var conn = getConn()) {
             var q = new Queries(conn);
 
@@ -167,6 +167,26 @@ public class TestQueries {
             assertThat(found2).isPresent();
             assertThat(found2.get().contents()).isEqualTo(s1);
             assertThat(found2.get().hash()).isEqualTo(s2);
+        }
+    }
+
+    @Test
+    @DisplayName("nullable and non-nullable enums work correctly")
+    void nullableAndNonNullableEnumsWorkCorrectly() throws Exception {
+        try (var conn = getConn()) {
+            var q = new Queries(conn);
+
+            q.createPerson("foo", Mood.HAPPY, null);
+            var p1 = q.getPerson("foo");
+            assertThat(p1).isPresent();
+            assertThat(p1.get().currentMood()).isEqualTo(Mood.HAPPY);
+            assertThat(p1.get().nextMood()).isNull();
+
+            q.createPerson("bar", Mood.HAPPY, Mood.OK);
+            var p2 = q.getPerson("bar");
+            assertThat(p2).isPresent();
+            assertThat(p2.get().currentMood()).isEqualTo(Mood.HAPPY);
+            assertThat(p2.get().nextMood()).isEqualTo(Mood.OK);
         }
     }
 }

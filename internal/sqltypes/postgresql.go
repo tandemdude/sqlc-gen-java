@@ -24,9 +24,6 @@ func PostgresTypeToJavaType(identifier *plugin.Identifier) (string, error) {
 		return "java.math.BigDecimal", nil
 	case "bool", "pg_catalog.bool":
 		return "Boolean", nil
-	// TODO - figure out if this can be supported properly
-	case "jsonb":
-		return "String", nil
 	case "bytea", "blob", "pg_catalog.bytea":
 		return "byte[]", nil
 	case "date":
@@ -41,10 +38,11 @@ func PostgresTypeToJavaType(identifier *plugin.Identifier) (string, error) {
 		return "String", nil
 	case "uuid":
 		return "java.util.UUID", nil
-	case "inet", "void", "any":
-		return "", fmt.Errorf("datatype '%s' not currently supported", colType)
+	// TODO - figure out if these can be supported properly
+	case "jsonb", "inet":
+		return "String", nil
 	default:
-		// TODO - deal with enums somehow
+		// void, any
 		return "", fmt.Errorf("datatype '%s' not currently supported", colType)
 	}
 }
