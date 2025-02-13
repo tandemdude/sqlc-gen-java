@@ -43,7 +43,6 @@ func PostgresTypeToJavaType(identifier *plugin.Identifier) (string, error) {
 		return "String", nil
 	default:
 		// void, any
-		// TODO - deal with enums somehow
 		return "", fmt.Errorf("datatype '%s' not currently supported", colType)
 	}
 }
