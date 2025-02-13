@@ -96,6 +96,9 @@ func (q QueryArg) BindStmt() string {
 	}
 
 	if q.JavaType.IsEnum {
+		if q.JavaType.IsNullable {
+			return fmt.Sprintf("stmt.setString(%d, %s == null ? null : %s.getValue());", q.Number, q.Name, q.Name)
+		}
 		return fmt.Sprintf("stmt.setString(%d, %s.getValue());", q.Number, q.Name)
 	}
 
