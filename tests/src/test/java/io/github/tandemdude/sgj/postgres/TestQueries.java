@@ -1,5 +1,6 @@
 package io.github.tandemdude.sgj.postgres;
 
+import io.github.tandemdude.sgj.postgres.enums.Mood;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -166,6 +167,26 @@ public class TestQueries {
             assertThat(found2).isPresent();
             assertThat(found2.get().contents()).isEqualTo(s1);
             assertThat(found2.get().hash()).isEqualTo(s2);
+        }
+    }
+
+    @Test
+    @DisplayName("nullable and non-nullable enums work correctly")
+    void nullableAndNonNullableEnumsWorkCorrectly() throws Exception {
+        try (var conn = getConn()) {
+            var q = new Queries(conn);
+
+            q.createPerson("foo", Mood.HAPPY, null);
+            var p1 = q.getPerson("foo");
+            assertThat(p1).isPresent();
+            assertThat(p1.get().currentMood()).isEqualTo(Mood.HAPPY);
+            assertThat(p1.get().nextMood()).isNull();
+
+            q.createPerson("bar", Mood.HAPPY, Mood.OK);
+            var p2 = q.getPerson("bar");
+            assertThat(p2).isPresent();
+            assertThat(p2.get().currentMood()).isEqualTo(Mood.HAPPY);
+            assertThat(p2.get().nextMood()).isEqualTo(Mood.OK);
         }
     }
 }

@@ -38,3 +38,10 @@ CREATE TABLE bytes (
     contents BYTEA NOT NULL,
     hash BYTEA DEFAULT NULL
 );
+
+CREATE TYPE mood AS ENUM ('sad', 'happy', 'ok');
+CREATE TABLE person (
+    name TEXT PRIMARY KEY,
+    current_mood mood NOT NULL,
+    next_mood mood DEFAULT NULL
+);

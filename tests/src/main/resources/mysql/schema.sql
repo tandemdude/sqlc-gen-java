@@ -20,7 +20,7 @@ CREATE TABLE books (
 CREATE INDEX books_title_idx ON books(title(255), yr);
 -- end --
 
-CREATE TABLE instant_test (
+CREATE TABLE nullable_enum_test (
     t_id integer NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    ts timestamp DEFAULT NULL
-) ENGINE=InnoDB;
+    enum_field ENUM('foo', 'bar') DEFAULT NULL
+);

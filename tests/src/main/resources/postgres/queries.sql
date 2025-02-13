@@ -49,3 +49,9 @@ RETURNING row_id;
 
 -- name: GetBytes :one
 SELECT * FROM bytes WHERE row_id = $1;
+
+-- name: CreatePerson :exec
+INSERT INTO person(name, current_mood, next_mood) VALUES ($1, $2, $3);
+
+-- name: GetPerson :one
+SELECT * FROM person WHERE name = $1;
