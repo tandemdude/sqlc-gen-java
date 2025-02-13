@@ -144,7 +144,7 @@ func (q QueryReturn) ResultStmt(number int) string {
 
 	if q.JavaType.IsEnum {
 		if q.JavaType.IsNullable {
-			return fmt.Sprintf("Optional.ofNullable(results.getString(%d)).map(%s::valueOf).orElse(null)", number, typeOnly)
+			return fmt.Sprintf("Optional.ofNullable(results.getString(%d)).map(%s::fromValue).orElse(null)", number, typeOnly)
 		}
 		return fmt.Sprintf("%s.valueOf(results.getString(%d))", typeOnly, number)
 	}

@@ -56,9 +56,19 @@ func BuildEnumFile(engine string, conf core.Config, qualName string, enum core.E
 		}
 	}
 	sb.WriteString(";\n\n")
-	sb.WriteIndentedString(1, "private final String value;\n")
-	sb.WriteIndentedString(1, className+"(final String value) {this.value = value;}\n")
-	sb.WriteIndentedString(1, "public String getValue() {return this.value;}\n")
+	sb.WriteIndentedString(1, "private final String value;\n\n")
+	sb.WriteIndentedString(1, className+"(final String value) {\n")
+	sb.WriteIndentedString(2, "this.value = value;\n")
+	sb.WriteIndentedString(1, "}\n\n")
+	sb.WriteIndentedString(1, "public String getValue() {\n")
+	sb.WriteIndentedString(2, "return this.value;")
+	sb.WriteIndentedString(1, "}\n\n")
+	sb.WriteIndentedString(1, "public static fromValue(final String value) {\n")
+	sb.WriteIndentedString(2, "for (var v : "+className+".values()) {\n")
+	sb.WriteIndentedString(3, "if (v.value.equals(value)) return v;\n")
+	sb.WriteIndentedString(2, "}\n")
+	sb.WriteIndentedString(2, "throw new IllegalArgumentException(\"No enum constant with value \" + value);\n")
+	sb.WriteIndentedString(1, "}\n")
 	sb.WriteString("}\n")
 
 	return fmt.Sprintf("enums/%s.java", className), []byte(sb.String()), nil
