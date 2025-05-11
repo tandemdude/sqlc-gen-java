@@ -119,14 +119,18 @@ type QueryReturn struct {
 	EmbeddedModel *string
 }
 
-func (q QueryReturn) ResultStmt(number int) string {
+func (q QueryReturn) ResultStmt(number int) (string, string, error) {
+	imp, _, err := ResolveImportAndType(q.JavaType.Type)
+	if err != nil {
+		return "", "", err
+	}
 	typeOnly := q.JavaType.Type[strings.LastIndex(q.JavaType.Type, ".")+1:]
 
 	if q.JavaType.IsList {
 		if q.JavaType.IsNullable {
-			return fmt.Sprintf("getList(results, %d, %s[].class)", number, typeOnly)
+			return fmt.Sprintf("getList(results, %d, %s[].class)", number, typeOnly), imp, nil
 		}
-		return fmt.Sprintf("Arrays.asList(%s[].class.cast(results.getArray(%d).getArray()))", typeOnly, number)
+		return fmt.Sprintf("Arrays.asList(%s[].class.cast(results.getArray(%d).getArray()))", typeOnly, number), imp, nil
 	}
 
 	if slices.Contains(literalBindTypes, typeOnly) {
@@ -137,19 +141,19 @@ func (q QueryReturn) ResultStmt(number int) string {
 		}
 
 		if q.JavaType.IsNullable && ok {
-			return fmt.Sprintf("get%s(results, %d)", typeOnly, number)
+			return fmt.Sprintf("get%s(results, %d)", typeOnly, number), imp, nil
 		}
-		return fmt.Sprintf("results.get%s(%d)", typeOnly, number)
+		return fmt.Sprintf("results.get%s(%d)", typeOnly, number), imp, nil
 	}
 
 	if q.JavaType.IsEnum {
 		if q.JavaType.IsNullable {
-			return fmt.Sprintf("Optional.ofNullable(results.getString(%d)).map(%s::fromValue).orElse(null)", number, typeOnly)
+			return fmt.Sprintf("Optional.ofNullable(results.getString(%d)).map(%s::fromValue).orElse(null)", number, typeOnly), imp, nil
 		}
-		return fmt.Sprintf("%s.fromValue(results.getString(%d))", typeOnly, number)
+		return fmt.Sprintf("%s.fromValue(results.getString(%d))", typeOnly, number), imp, nil
 	}
 
-	return fmt.Sprintf("results.getObject(%d, %s.class)", number, typeOnly)
+	return fmt.Sprintf("results.getObject(%d, %s.class)", number, typeOnly), imp, nil
 }
 
 type Query struct {
