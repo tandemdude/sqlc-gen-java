@@ -2,6 +2,7 @@ package sqltypes
 
 import (
 	"fmt"
+
 	"github.com/sqlc-dev/plugin-sdk-go/plugin"
 	"github.com/sqlc-dev/plugin-sdk-go/sdk"
 )
@@ -20,9 +21,8 @@ func MysqlTypeToJavaType(identifier *plugin.Identifier) (string, error) {
 		return "byte[]", nil
 	case "double", "double precision", "real":
 		return "Double", nil
-	// TODO - why does gen-kotlin use string for this? look into a better solution
 	case "decimal", "dec", "fixed":
-		return "String", nil
+		return "java.math.BigDecimal", nil
 	case "date":
 		return "java.time.LocalDate", nil
 	case "datetime", "time":
