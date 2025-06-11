@@ -29,7 +29,7 @@ jobs:
         run: bash .github/scripts/bump_version.sh ${{ inputs.version_type }}
 
       - name: Commit Changes
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v6
         with:
           commit_message: "chore: bump version for release"
           file_pattern: "internal/core/*.go"
