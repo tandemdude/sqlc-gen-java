@@ -162,7 +162,9 @@ func BuildQueriesFile(engine string, config core.Config, queryFilename string, q
 
 	// boilerplate methods to allow for getting null primitive values
 	body.WriteString("\n")
-	body.writeNullableHelpers(nullableHelpers, nonNullAnnotation, nullableAnnotation)
+
+	imp := body.writeNullableHelpers(nullableHelpers, nonNullAnnotation, nullableAnnotation)
+	imports = append(imports, imp...)
 
 	for _, q := range queries {
 		body.WriteString("\n")

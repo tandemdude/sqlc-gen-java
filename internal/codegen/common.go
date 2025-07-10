@@ -42,7 +42,8 @@ type nullableHelper struct {
 	ArgType      string
 }
 
-func (b *IndentStringBuilder) writeNullableHelpers(nullableHelpers core.NullableHelpers, nonNullAnnotation, nullableAnnotation string) {
+func (b *IndentStringBuilder) writeNullableHelpers(nullableHelpers core.NullableHelpers, nonNullAnnotation, nullableAnnotation string) []string {
+	imports := make([]string, 0)
 	methodTypes := []nullableHelper{
 		{nullableHelpers.Int, "Integer", "Int"},
 		{nullableHelpers.Long, "Long", "Long"},
@@ -77,7 +78,11 @@ func (b *IndentStringBuilder) writeNullableHelpers(nullableHelpers core.Nullable
 		))
 		b.WriteIndentedString(2, "var colVal = rs.getArray(col); return colVal == null ? null : Arrays.asList(as.cast(colVal.getArray()));\n")
 		b.WriteIndentedString(1, "}\n")
+
+		imports = append(imports, "java.util.List")
 	}
+
+	return imports
 }
 
 func (b *IndentStringBuilder) writeParameter(javaType core.JavaType, name, nonNullAnnotation, nullableAnnotation string) ([]string, error) {
