@@ -92,7 +92,13 @@ func (q QueryArg) BindStmt(engine string) string {
 			return rawSet
 		}
 
-		return fmt.Sprintf("%s == null ? stmt.setNull(%d, java.sql.Types.%s) : %s", q.Name, q.Number, javaSqlType, rawSet)
+		return fmt.Sprintf(`
+			if (%s != null) {
+				%s
+			} else {
+				stmt.setNull(%d, java.sql.Types.%s) 
+			}
+		`, q.Name, rawSet, q.Number, javaSqlType)
 	}
 
 	if q.JavaType.IsEnum {
