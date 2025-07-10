@@ -93,11 +93,11 @@ func (q QueryArg) BindStmt(engine string) string {
 		}
 
 		return fmt.Sprintf(`
-			if (%s != null) {
-				%s
-			} else {
-				stmt.setNull(%d, java.sql.Types.%s) 
-			}
+		if (%s != null) {
+		    %s
+		} else {
+		    stmt.setNull(%d, java.sql.Types.%s) 
+		}
 		`, q.Name, rawSet, q.Number, javaSqlType)
 	}
 
