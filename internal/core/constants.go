@@ -1,3 +1,3 @@
 package core
 
-const PluginVersion = "0.0.5"
+const PluginVersion = "0.0.6"
