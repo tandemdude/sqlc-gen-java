@@ -1,9 +1,10 @@
 package inflection
 
 import (
-	"github.com/jinzhu/inflection"
 	"slices"
 	"strings"
+
+	"github.com/jinzhu/inflection"
 )
 
 func Singular(s string, excludes []string) string {
