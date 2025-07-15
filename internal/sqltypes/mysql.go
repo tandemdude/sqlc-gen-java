@@ -3,6 +3,8 @@ package sqltypes
 import (
 	"fmt"
 
+	"github.com/tandemdude/sqlc-gen-java/poet"
+
 	"github.com/sqlc-dev/plugin-sdk-go/plugin"
 	"github.com/sqlc-dev/plugin-sdk-go/sdk"
 )
@@ -36,5 +38,37 @@ func MysqlTypeToJavaType(identifier *plugin.Identifier) (string, error) {
 		return "String", nil
 	default:
 		return "", fmt.Errorf("datatype '%s' not currently supported", colType)
+	}
+}
+
+func ConvertMySQLType(identifier *plugin.Identifier) (poet.TypeName, error) {
+	colType := sdk.DataType(identifier)
+
+	switch colType {
+	case "varchar", "text", "char", "tinytext", "mediumtext", "longtext":
+		return poet.String, nil
+	case "int", "integer", "smallint", "mediumint", "year":
+		return poet.IntBoxed, nil
+	case "bigint":
+		return poet.LongBoxed, nil
+	case "blob", "binary", "varbinary", "tinyblob", "mediumblob", "longblob":
+		return poet.Byte.Array(), nil
+	case "double", "double precision", "real":
+		return poet.DoubleBoxed, nil
+	case "decimal", "dec", "fixed":
+		return poet.NewClassName("java.math", "BigDecimal"), nil
+	case "date":
+		return poet.NewClassName("java.time", "LocalTime"), nil
+	case "datetime", "time":
+		return poet.NewClassName("java.time", "LocalDateTime"), nil
+	// TODO - instant support - look into option for this in pgsql as well
+	case "timestamp":
+		return poet.NewClassName("java.time", "OffsetDateTime"), nil
+	case "boolean", "bool", "tinyint":
+		return poet.BoolBoxed, nil
+	case "json":
+		return poet.String, nil
+	default:
+		return poet.TypeName{}, fmt.Errorf("datatype '%s' not currently supported", colType)
 	}
 }

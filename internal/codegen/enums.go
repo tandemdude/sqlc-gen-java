@@ -2,12 +2,13 @@ package codegen
 
 import (
 	"fmt"
-	"github.com/iancoleman/strcase"
-	"github.com/tandemdude/sqlc-gen-java/internal/core"
 	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/iancoleman/strcase"
+	"github.com/tandemdude/sqlc-gen-java/internal/core"
 )
 
 var javaInvalidIdentChars = regexp.MustCompile("[^$\\w]")
