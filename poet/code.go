@@ -3,7 +3,6 @@ package poet
 import (
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 )
 
@@ -24,31 +23,21 @@ func formatRawCode(ctx *Context, rawCode string, arguments []any) string {
 	matchIndex := 0
 
 	return StringFormatRegex.ReplaceAllStringFunc(rawCode, func(match string) string {
+		argumentIndex := 0
+		for i := 1; i < len(match)-1; i++ {
+			argumentIndex = (argumentIndex * 10) + int(match[i]-'0')
+		}
+
+		replaceType := rune(match[len(match)-1])
+
 		subMatches := StringFormatRegex.FindStringSubmatch(match)
 		if subMatches == nil {
 			// It is impossible for subMatches to be nil here. If it somehow is, then something
 			// went seriously wrong
 			return match
 		}
-		rawArgumentNumber := subMatches[1]
-		replaceType := subMatches[2]
 
-		var argumentIndex int
-		if rawArgumentNumber != "" {
-			var err error
-			argumentIndex, err = strconv.Atoi(rawArgumentNumber)
-			if err != nil {
-				// Should be impossible for Atoi to fail here, unless a
-				// massive number is given as the input, in which case we just wont
-				// replace it
-				return match
-			}
-
-			if argumentIndex == 0 {
-				// Index starts at 1, so 0 will be unknown
-				return match
-			}
-
+		if argumentIndex > 0 {
 			// So they dont have to be 0 indexed
 			argumentIndex -= 1
 		} else {
@@ -63,7 +52,7 @@ func formatRawCode(ctx *Context, rawCode string, arguments []any) string {
 		replacement := match
 
 		switch replaceType {
-		case "L":
+		case 'L':
 			// Literal
 			if arguments[argumentIndex] == nil {
 				// Special case, write `nil` as `null`
@@ -71,7 +60,7 @@ func formatRawCode(ctx *Context, rawCode string, arguments []any) string {
 			} else {
 				replacement = fmt.Sprintf("%v", arguments[argumentIndex])
 			}
-		case "S":
+		case 'S':
 			// String
 			if arguments[argumentIndex] == nil {
 				// Special case, write `nil` as `null`
@@ -79,12 +68,12 @@ func formatRawCode(ctx *Context, rawCode string, arguments []any) string {
 			} else {
 				replacement = fmt.Sprintf(`"%v"`, arguments[argumentIndex])
 			}
-		case "T":
+		case 'T':
 			// Type
 			replacement = arguments[argumentIndex].(TypeName).Format(ctx)
 		}
 
-		if rawArgumentNumber == "" {
+		if argumentIndex > 0 {
 			matchIndex += 1
 		}
 
