@@ -6,7 +6,13 @@ import (
 	"strings"
 )
 
-var StringFormatRegex = regexp.MustCompile(`\$(?<pos>\d*)?(?<type>[LST])`)
+const (
+	replaceTypeLiteral rune = 'L'
+	replaceTypeString  rune = 'S'
+	replaceTypeType    rune = 'T'
+)
+
+var stringFormatRegex = regexp.MustCompile(`\$(?<pos>\d*)?(?<type>[LST])`)
 
 type Code struct {
 	RawCode    string
@@ -19,10 +25,18 @@ type Code struct {
 	Statements []Code
 }
 
+func stringify(raw any) string {
+	if raw == nil {
+		return "null"
+	}
+
+	return fmt.Sprintf("%v", raw)
+}
+
 func formatRawCode(ctx *Context, rawCode string, arguments []any) string {
 	matchIndex := 0
 
-	return StringFormatRegex.ReplaceAllStringFunc(rawCode, func(match string) string {
+	return stringFormatRegex.ReplaceAllStringFunc(rawCode, func(match string) string {
 		argumentIndex := 0
 		for i := 1; i < len(match)-1; i++ {
 			argumentIndex = (argumentIndex * 10) + int(match[i]-'0')
@@ -30,7 +44,7 @@ func formatRawCode(ctx *Context, rawCode string, arguments []any) string {
 
 		replaceType := rune(match[len(match)-1])
 
-		subMatches := StringFormatRegex.FindStringSubmatch(match)
+		subMatches := stringFormatRegex.FindStringSubmatch(match)
 		if subMatches == nil {
 			// It is impossible for subMatches to be nil here. If it somehow is, then something
 			// went seriously wrong
@@ -52,23 +66,11 @@ func formatRawCode(ctx *Context, rawCode string, arguments []any) string {
 		replacement := match
 
 		switch replaceType {
-		case 'L':
-			// Literal
-			if arguments[argumentIndex] == nil {
-				// Special case, write `nil` as `null`
-				replacement = "null"
-			} else {
-				replacement = fmt.Sprintf("%v", arguments[argumentIndex])
-			}
-		case 'S':
-			// String
-			if arguments[argumentIndex] == nil {
-				// Special case, write `nil` as `null`
-				replacement = `"null"`
-			} else {
-				replacement = fmt.Sprintf(`"%v"`, arguments[argumentIndex])
-			}
-		case 'T':
+		case replaceTypeLiteral:
+			replacement = stringify(arguments[argumentIndex])
+		case replaceTypeString:
+			replacement = fmt.Sprintf("%q", stringify(arguments[argumentIndex]))
+		case replaceTypeType:
 			// Type
 			replacement = arguments[argumentIndex].(TypeName).Format(ctx)
 		}
