@@ -37,18 +37,10 @@ func formatRawCode(ctx *Context, rawCode string, arguments []any) string {
 	matchIndex := 0
 
 	return stringFormatRegex.ReplaceAllStringFunc(rawCode, func(match string) string {
+		replaceType := rune(match[len(match)-1])
 		argumentIndex := 0
 		for i := 1; i < len(match)-1; i++ {
 			argumentIndex = (argumentIndex * 10) + int(match[i]-'0')
-		}
-
-		replaceType := rune(match[len(match)-1])
-
-		subMatches := stringFormatRegex.FindStringSubmatch(match)
-		if subMatches == nil {
-			// It is impossible for subMatches to be nil here. If it somehow is, then something
-			// went seriously wrong
-			return match
 		}
 
 		if argumentIndex > 0 {
@@ -71,7 +63,6 @@ func formatRawCode(ctx *Context, rawCode string, arguments []any) string {
 		case replaceTypeString:
 			replacement = fmt.Sprintf("%q", stringify(arguments[argumentIndex]))
 		case replaceTypeType:
-			// Type
 			replacement = arguments[argumentIndex].(TypeName).Format(ctx)
 		}
 
