@@ -66,7 +66,7 @@ func formatRawCode(ctx *Context, rawCode string, arguments []any) string {
 			replacement = arguments[argumentIndex].(TypeName).Format(ctx)
 		}
 
-		if argumentIndex > 0 {
+		if len(match) == 2 {
 			matchIndex += 1
 		}
 
