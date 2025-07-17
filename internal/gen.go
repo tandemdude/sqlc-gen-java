@@ -175,7 +175,7 @@ func (gen *JavaGenerator) Run() (*plugin.GenerateResponse, error) {
 
 		// TODO - enum types? other specialness?
 		args := make([]core.QueryArg, 0)
-		for _, arg := range query.Params {
+		for index, arg := range query.Params {
 			isEnum := false
 			javaType, err := gen.typeConversionFunc(arg.Column.Type)
 			if err != nil {
@@ -199,9 +199,14 @@ func (gen *JavaGenerator) Run() (*plugin.GenerateResponse, error) {
 				return nil, fmt.Errorf("multidimensional arrays are not supported, store JSON instead")
 			}
 
+			columnName := arg.Column.Name
+			if columnName == "" {
+				columnName = fmt.Sprintf("column%d", index+1)
+			}
+
 			args = append(args, core.QueryArg{
 				Number: int(arg.Number),
-				Name:   strcase.ToLowerCamel(arg.Column.Name),
+				Name:   strcase.ToLowerCamel(columnName),
 				JavaType: core.JavaType{
 					SqlType:    sdk.DataType(arg.Column.Type),
 					Type:       javaType,
