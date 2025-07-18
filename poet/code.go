@@ -1,8 +1,18 @@
 package poet
 
 import (
+	"fmt"
+	"regexp"
 	"strings"
 )
+
+const (
+	replaceTypeLiteral rune = 'L'
+	replaceTypeString  rune = 'S'
+	replaceTypeType    rune = 'T'
+)
+
+var stringFormatRegex = regexp.MustCompile(`\${1,2}\d*[LST]`)
 
 type Code struct {
 	RawCode    string
@@ -15,8 +25,56 @@ type Code struct {
 	Statements []Code
 }
 
+func stringify(raw any) string {
+	if raw == nil {
+		return "null"
+	}
+
+	return fmt.Sprintf("%v", raw)
+}
+
 func formatRawCode(ctx *Context, rawCode string, arguments []any) string {
-	return ""
+	matchIndex := 0
+
+	return stringFormatRegex.ReplaceAllStringFunc(rawCode, func(match string) string {
+		// if the pattern is escaped
+		if strings.HasPrefix(match, "$$") {
+			return match[1:]
+		}
+
+		argumentIndex, replaceType := 0, rune(match[len(match)-1])
+		for i := 1; i < len(match)-1; i++ {
+			argumentIndex = (argumentIndex * 10) + int(match[i]-'0')
+		}
+
+		argumentIndex -= 1
+		if argumentIndex < 0 {
+			argumentIndex = matchIndex
+		}
+
+		if argumentIndex > len(arguments)-1 {
+			// tried to access an argument that is not there - TODO allow errors to be returned from formatting
+			return match
+		}
+
+		replacement := match
+		switch replaceType {
+		case replaceTypeLiteral:
+			replacement = stringify(arguments[argumentIndex])
+		case replaceTypeString:
+			replacement = fmt.Sprintf("%q", stringify(arguments[argumentIndex]))
+		case replaceTypeType:
+			// it is unlikely that a user will ever want to include the generic constraint in the formatted
+			// value - in the future could make this configurable through extended replace type codes
+			replacement = arguments[argumentIndex].(TypeName).Format(ctx, ExcludeConstraints)
+		}
+
+		if len(match) == 2 {
+			matchIndex += 1
+		}
+
+		return replacement
+	})
 }
 
 func formatStatements(ctx *Context, statements []Code) string {
@@ -47,7 +105,7 @@ func (c *Code) Format(ctx *Context) string {
 
 	if c.IsFlow {
 		// Control flow statement
-		sb.WriteString(c.RawCode)
+		sb.WriteString(formatRawCode(ctx, c.RawCode, c.Arguments))
 		sb.WriteString(" {\n")
 		sb.WriteString(ctx.indent(formatStatements(ctx, c.Statements)))
 		sb.WriteString("}")
@@ -57,7 +115,7 @@ func (c *Code) Format(ctx *Context) string {
 
 	if c.RawCode != "" && !c.IsFlow {
 		// Simple statement
-		sb.WriteString(c.RawCode)
+		sb.WriteString(formatRawCode(ctx, c.RawCode, c.Arguments))
 		if !strings.HasSuffix(c.RawCode, ";") {
 			sb.WriteRune(';')
 		}
