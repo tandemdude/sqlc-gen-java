@@ -37,33 +37,31 @@ func formatRawCode(ctx *Context, rawCode string, arguments []any) string {
 	matchIndex := 0
 
 	return stringFormatRegex.ReplaceAllStringFunc(rawCode, func(match string) string {
-		replaceType := rune(match[len(match)-1])
-		argumentIndex := 0
+		argumentIndex, replaceType := 0, rune(match[len(match)-1])
 		for i := 1; i < len(match)-1; i++ {
 			argumentIndex = (argumentIndex * 10) + int(match[i]-'0')
 		}
 
-		if argumentIndex > 0 {
-			// So they dont have to be 0 indexed
-			argumentIndex -= 1
-		} else {
+		argumentIndex -= 1
+		if argumentIndex < 0 {
 			argumentIndex = matchIndex
 		}
 
 		if argumentIndex >= len(arguments) {
-			// Tried to access an argument that is not there
+			// tried to access an argument that is not there - TODO allow errors to be returned from formatting
 			return match
 		}
 
 		replacement := match
-
 		switch replaceType {
 		case replaceTypeLiteral:
 			replacement = stringify(arguments[argumentIndex])
 		case replaceTypeString:
 			replacement = fmt.Sprintf("%q", stringify(arguments[argumentIndex]))
 		case replaceTypeType:
-			replacement = arguments[argumentIndex].(TypeName).Format(ctx)
+			// it is unlikely that a user will ever want to include the generic constraint in the formatted
+			// value - in the future could make this configurable through extended replace type codes
+			replacement = arguments[argumentIndex].(TypeName).Format(ctx, ExcludeConstraints)
 		}
 
 		if len(match) == 2 {
