@@ -12,7 +12,7 @@ const (
 	replaceTypeType    rune = 'T'
 )
 
-var stringFormatRegex = regexp.MustCompile(`\$(?<pos>\d*)?(?<type>[LST])`)
+var stringFormatRegex = regexp.MustCompile(`\${1,2}\d*[LST]`)
 
 type Code struct {
 	RawCode    string
@@ -37,6 +37,11 @@ func formatRawCode(ctx *Context, rawCode string, arguments []any) string {
 	matchIndex := 0
 
 	return stringFormatRegex.ReplaceAllStringFunc(rawCode, func(match string) string {
+		// if the pattern is escaped
+		if strings.HasPrefix(match, "$$") {
+			return match[1:]
+		}
+
 		argumentIndex, replaceType := 0, rune(match[len(match)-1])
 		for i := 1; i < len(match)-1; i++ {
 			argumentIndex = (argumentIndex * 10) + int(match[i]-'0')
@@ -47,7 +52,7 @@ func formatRawCode(ctx *Context, rawCode string, arguments []any) string {
 			argumentIndex = matchIndex
 		}
 
-		if argumentIndex >= len(arguments) {
+		if argumentIndex > len(arguments)-1 {
 			// tried to access an argument that is not there - TODO allow errors to be returned from formatting
 			return match
 		}
