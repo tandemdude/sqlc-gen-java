@@ -72,7 +72,7 @@ func TestCodeBuilder_StringFormatting(t *testing.T) {
 			ctx := NewContext("io.github.tandemdude")
 
 			code := NewCodeBuilder().
-				AddStatement(tt.code, tt.args...).
+				WithStatement(tt.code, tt.args...).
 				Build()
 
 			assert.Equal(tt.expected+";\n", code.Format(ctx))
@@ -86,8 +86,8 @@ func TestCodeBuilder_MultipleStatements(t *testing.T) {
 	ctx := NewContext("io.github.tandemdude")
 
 	code := NewCodeBuilder().
-		AddStatement("$L $S", false, true).
-		AddStatement("$L $S", true, false).
+		WithStatement("$L $S", false, true).
+		WithStatement("$L $S", true, false).
 		Build()
 
 	assert.Equal("false \"true\";\ntrue \"false\";\n", code.Format(ctx))

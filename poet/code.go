@@ -20,8 +20,7 @@ type Code struct {
 	IsTryCatch bool
 	IsIfElse   bool
 
-	Arguments []any
-
+	Arguments  []any
 	Statements []Code
 }
 
@@ -29,7 +28,6 @@ func stringify(raw any) string {
 	if raw == nil {
 		return "null"
 	}
-
 	return fmt.Sprintf("%v", raw)
 }
 
@@ -77,20 +75,27 @@ func formatRawCode(ctx *Context, rawCode string, arguments []any) string {
 	})
 }
 
+func shouldInlineNextStmt(stmt Code, nextStmt Code) bool {
+	if !nextStmt.IsFlow {
+		return false
+	}
+
+	if stmt.IsIfElse {
+		return nextStmt.IsIfElse && !strings.HasPrefix(nextStmt.RawCode, "if")
+	} else if stmt.IsTryCatch {
+		return nextStmt.IsTryCatch && !strings.HasPrefix(nextStmt.RawCode, "try")
+	}
+
+	return false
+}
+
 func formatStatements(ctx *Context, statements []Code) string {
 	var sb strings.Builder
 
 	for i, stmt := range statements {
 		sb.WriteString(stmt.Format(ctx))
 
-		inlineNextStmt := false
-		if stmt.IsFlow && len(statements) > i+1 {
-			nextStmt := statements[i+1]
-
-			inlineNextStmt = nextStmt.IsFlow && ((stmt.IsIfElse && nextStmt.IsIfElse) || (stmt.IsTryCatch && nextStmt.IsTryCatch))
-		}
-
-		if inlineNextStmt {
+		if stmt.IsFlow && (len(statements) > i+1) && shouldInlineNextStmt(stmt, statements[i+1]) {
 			sb.WriteString(" ")
 		} else {
 			sb.WriteString("\n")
@@ -137,7 +142,7 @@ func NewCodeBuilder() *CodeBuilder {
 	return &CodeBuilder{}
 }
 
-func (b *CodeBuilder) AddStatement(stmt string, args ...any) *CodeBuilder {
+func (b *CodeBuilder) WithStatement(stmt string, args ...any) *CodeBuilder {
 	b.code.Statements = append(b.code.Statements, Code{RawCode: stmt, Arguments: args})
 	return b
 }
@@ -157,6 +162,11 @@ func (b *CodeBuilder) WithControlFlow(stmt string, blockBuilderFn func(*CodeBuil
 	blockBuilderFn(builder)
 
 	b.code.Statements = append(b.code.Statements, builder.Build())
+	return b
+}
+
+func (b *CodeBuilder) WithRawCode(code string) *CodeBuilder {
+	b.code.Statements = append(b.code.Statements, Code{RawCode: code})
 	return b
 }
 
