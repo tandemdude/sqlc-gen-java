@@ -1,6 +1,7 @@
 package poet
 
 import (
+	"slices"
 	"strings"
 )
 
@@ -27,6 +28,8 @@ type Method struct {
 	Throws            []TypeName
 
 	Body Code
+
+	isConstructor bool
 }
 
 func (m Method) Format(ctx *Context) string {
@@ -34,20 +37,11 @@ func (m Method) Format(ctx *Context) string {
 
 	sb.WriteString(formatModifiers(m.Modifiers))
 	sb.WriteString(" ")
-
-	if len(m.GenericParameters) > 0 {
-		sb.WriteString("<")
-		for i, param := range m.GenericParameters {
-			sb.WriteString(param.Format(ctx, ExcludeConstraints))
-			if i < len(m.GenericParameters)-1 {
-				sb.WriteString(", ")
-			}
-		}
-		sb.WriteString("> ")
+	writeGenericParamList(ctx, &sb, m.GenericParameters, true)
+	if !m.isConstructor {
+		sb.WriteString(m.ReturnType.Format(ctx, ExcludeConstraints))
+		sb.WriteString(" ")
 	}
-
-	sb.WriteString(m.ReturnType.Format(ctx, ExcludeConstraints))
-	sb.WriteString(" ")
 
 	sb.WriteString(m.Name)
 
@@ -59,26 +53,30 @@ func (m Method) Format(ctx *Context) string {
 		}
 	}
 
-	sb.WriteString(") ")
+	sb.WriteString(")")
 	if len(m.Throws) > 0 {
-		sb.WriteString("throws ")
+		sb.WriteString(" throws ")
 		for i, throw := range m.Throws {
 			sb.WriteString(throw.Format(ctx, ExcludeConstraints, ExcludeParameters, ExcludeArrayBraces))
 
 			if i < len(m.Throws)-1 {
 				sb.WriteString(",")
 			}
-
-			sb.WriteString(" ")
 		}
 	}
 
+	// abstract methods cannot have bodies
+	if slices.Contains(m.Modifiers, ModifierAbstract) {
+		sb.WriteString(";")
+		return sb.String()
+	}
+
 	if code := m.Body.Format(ctx); strings.TrimSpace(code) != "" {
-		sb.WriteString("{\n")
+		sb.WriteString(" {\n")
 		sb.WriteString(ctx.indent(code))
 		sb.WriteString("}")
 	} else {
-		sb.WriteString("{}")
+		sb.WriteString(" {}")
 	}
 
 	return sb.String()
@@ -97,11 +95,6 @@ func (b *MethodBuilder) WithModifiers(modifiers ...Modifier) *MethodBuilder {
 	return b
 }
 
-func (b *MethodBuilder) WithCode(code Code) *MethodBuilder {
-	b.method.Body = code
-	return b
-}
-
 func (b *MethodBuilder) WithGenericParameters(parameters ...TypeName) *MethodBuilder {
 	b.method.GenericParameters = append(b.method.GenericParameters, parameters...)
 	return b
@@ -117,55 +110,18 @@ func (b *MethodBuilder) WithThrows(throws ...TypeName) *MethodBuilder {
 	return b
 }
 
+func (b *MethodBuilder) WithCode(code Code) *MethodBuilder {
+	b.method.Body = code
+	return b
+}
+
 func (b *MethodBuilder) Build() Method {
 	b.method.Modifiers = maybeSetPackagePrivate(b.method.Modifiers)
 	return b.method
 }
 
-type Constructor Method
-
-func (c Constructor) Format(ctx *Context) string {
-	var sb strings.Builder
-
-	sb.WriteString(formatModifiers(c.Modifiers))
-	if len(c.Modifiers) > 0 {
-		sb.WriteString(" ")
-	}
-
-	sb.WriteString(c.Name)
-	sb.WriteString("(")
-
-	for i, param := range c.Parameters {
-		sb.WriteString(param.Format(ctx))
-		if i < len(c.Parameters)-1 {
-			sb.WriteString(", ")
-		}
-	}
-
-	sb.WriteString(") ")
-
-	if len(c.Throws) > 0 {
-		sb.WriteString("throws ")
-		for i, throw := range c.Throws {
-			sb.WriteString(throw.Format(ctx, ExcludeConstraints, ExcludeParameters, ExcludeArrayBraces))
-
-			if i < len(c.Throws)-1 {
-				sb.WriteString(",")
-			}
-
-			sb.WriteString(" ")
-		}
-	}
-
-	if code := c.Body.Format(ctx); strings.TrimSpace(code) != "" {
-		sb.WriteString(") {\n")
-		sb.WriteString(ctx.indent(code))
-		sb.WriteString("\n}")
-	} else {
-		sb.WriteString(") {}")
-	}
-
-	return sb.String()
+type Constructor struct {
+	Method
 }
 
 type ConstructorBuilder struct {
@@ -173,7 +129,7 @@ type ConstructorBuilder struct {
 }
 
 func NewConstructorBuilder() *ConstructorBuilder {
-	return &ConstructorBuilder{constructor: Constructor{}}
+	return &ConstructorBuilder{constructor: Constructor{Method{isConstructor: true}}}
 }
 
 func (b *ConstructorBuilder) WithModifiers(modifiers ...Modifier) *ConstructorBuilder {
@@ -188,6 +144,11 @@ func (b *ConstructorBuilder) WithParameters(params ...MethodParameter) *Construc
 
 func (b *ConstructorBuilder) WithThrows(throws ...TypeName) *ConstructorBuilder {
 	b.constructor.Throws = append(b.constructor.Throws, throws...)
+	return b
+}
+
+func (b *ConstructorBuilder) WithCode(code Code) *ConstructorBuilder {
+	b.constructor.Body = code
 	return b
 }
 

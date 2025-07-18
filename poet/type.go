@@ -16,10 +16,11 @@ type ClassField struct {
 type Class struct {
 	Name string
 
-	Modifiers   []Modifier
-	Constructor *Constructor
-	Fields      []ClassField
-	Methods     []Method
+	Modifiers         []Modifier
+	GenericParameters []TypeName
+	Constructor       *Constructor
+	Fields            []ClassField
+	Methods           []Method
 }
 
 func (c Class) name() string {
@@ -34,10 +35,9 @@ func (c Class) Format(ctx *Context) string {
 		sb.WriteString(" ")
 	}
 
-	// TODO - generic parameters?
-
 	sb.WriteString("class ")
 	sb.WriteString(c.Name)
+	writeGenericParamList(ctx, &sb, c.GenericParameters, false)
 	sb.WriteString(" {\n")
 
 	for i, field := range c.Fields {
@@ -88,6 +88,11 @@ func (c *ClassBuilder) WithModifiers(modifiers ...Modifier) *ClassBuilder {
 	return c
 }
 
+func (c *ClassBuilder) WithGenericParameters(parameters ...TypeName) *ClassBuilder {
+	c.class.GenericParameters = append(c.class.GenericParameters, parameters...)
+	return c
+}
+
 func (c *ClassBuilder) WithConstructor(constructor Constructor) *ClassBuilder {
 	c.class.Constructor = &constructor
 	return c
@@ -112,6 +117,10 @@ type EnumValue struct {
 	Name string
 	// for now, only support string enums given that is the only type supported by the databases
 	Value string
+}
+
+func NewEnumValue(name string, value string) EnumValue {
+	return EnumValue{Name: name, Value: value}
 }
 
 type Enum struct {
