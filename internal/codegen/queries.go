@@ -14,6 +14,10 @@ func resultRecordName(q core.Query) string {
 	return strcase.ToCamel(q.MethodName) + "Row"
 }
 
+func queryInputName(q core.Query) string {
+	return strcase.ToCamel(q.MethodName) + "QueryInput"
+}
+
 func createEmbeddedModel(sb *IndentStringBuilder, prefix, suffix string, identLevel, paramIdx int, r core.QueryReturn, embeddedModels core.EmbeddedModels) int {
 	modelName := *r.EmbeddedModel
 	model := embeddedModels[modelName]
@@ -247,10 +251,37 @@ func BuildQueriesFile(engine string, config core.Config, queryFilename string, q
 			methodBody.WriteIndentedString(2, "var stmt = conn.prepareStatement("+q.MethodName+");\n")
 		}
 
+		queryInput := ""
+
+		// input method for query params limit
+		if len(q.Args) > config.QueryParameterLimit {
+			queryInput = queryInputName(q)
+
+			body.WriteString("\n")
+			body.WriteIndentedString(1, "public record "+queryInput+"(\n")
+			for i, arg := range q.Args {
+				imps, err := body.writeParameter(arg.JavaType, arg.Name, nonNullAnnotation, nullableAnnotation)
+				if err != nil {
+					return "", nil, err
+				}
+				if imps != nil {
+					imports = append(imports, imps...)
+				}
+
+				if i != len(q.Args)-1 {
+					body.WriteString(",\n")
+				}
+			}
+			body.WriteString("\n")
+			body.WriteIndentedString(1, ") {}\n")
+		}
+
 		// write the method signature
 		body.WriteString("\n")
 		body.WriteIndentedString(1, fmt.Sprintf("public %s %s(", returnType, q.MethodName))
-		if len(q.Args) > 0 {
+		if len(q.Args) > config.QueryParameterLimit {
+			body.WriteString(fmt.Sprintf("%s %sinput) throws SQLException{\n", queryInput, queryInput))
+		} else if len(q.Args) > 0 {
 			body.WriteString("\n")
 
 			for i, arg := range q.Args {
