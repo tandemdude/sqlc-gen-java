@@ -254,7 +254,7 @@ func BuildQueriesFile(engine string, config core.Config, queryFilename string, q
 		queryInput := ""
 
 		// input method for query params limit
-		if len(q.Args) > config.QueryParameterLimit {
+		if len(q.Args) > config.QueryParameterLimit && config.QueryParameterLimit != 0 {
 			queryInput = queryInputName(q)
 
 			body.WriteString("\n")
@@ -279,7 +279,7 @@ func BuildQueriesFile(engine string, config core.Config, queryFilename string, q
 		// write the method signature
 		body.WriteString("\n")
 		body.WriteIndentedString(1, fmt.Sprintf("public %s %s(", returnType, q.MethodName))
-		if len(q.Args) > config.QueryParameterLimit {
+		if len(q.Args) > config.QueryParameterLimit && config.QueryParameterLimit != 0 {
 			body.WriteString(fmt.Sprintf("%s %sinput) throws SQLException{\n", queryInput, queryInput))
 		} else if len(q.Args) > 0 {
 			body.WriteString("\n")
