@@ -8,7 +8,6 @@ type Modifier int
 
 const (
 	ModifierPrivate Modifier = iota
-	ModifierPackagePrivate
 	ModifierProtected
 	ModifierPublic
 	ModifierAbstract
@@ -16,19 +15,10 @@ const (
 	ModifierFinal
 )
 
-var accessModifiers = []Modifier{
-	ModifierPrivate,
-	ModifierPackagePrivate,
-	ModifierProtected,
-	ModifierPublic,
-}
-
 func formatModifier(modifier Modifier) string {
 	switch modifier {
 	case ModifierPrivate:
 		return "private"
-	case ModifierPackagePrivate:
-		return ""
 	case ModifierProtected:
 		return "protected"
 	case ModifierPublic:

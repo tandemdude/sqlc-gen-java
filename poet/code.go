@@ -19,6 +19,7 @@ type Code struct {
 	IsFlow     bool
 	IsTryCatch bool
 	IsIfElse   bool
+	IsStmt     bool
 
 	Arguments  []any
 	Statements []Code
@@ -121,7 +122,7 @@ func (c *Code) Format(ctx *Context) string {
 	if c.RawCode != "" && !c.IsFlow {
 		// Simple statement
 		sb.WriteString(formatRawCode(ctx, c.RawCode, c.Arguments))
-		if !strings.HasSuffix(c.RawCode, ";") {
+		if c.IsStmt && !strings.HasSuffix(c.RawCode, ";") {
 			sb.WriteRune(';')
 		}
 
@@ -143,7 +144,7 @@ func NewCodeBuilder() *CodeBuilder {
 }
 
 func (b *CodeBuilder) WithStatement(stmt string, args ...any) *CodeBuilder {
-	b.code.Statements = append(b.code.Statements, Code{RawCode: stmt, Arguments: args})
+	b.code.Statements = append(b.code.Statements, Code{RawCode: stmt, Arguments: args, IsStmt: true})
 	return b
 }
 

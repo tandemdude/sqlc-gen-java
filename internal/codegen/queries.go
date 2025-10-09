@@ -2,13 +2,15 @@ package codegen
 
 import (
 	"errors"
-	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/iancoleman/strcase"
 	"github.com/tandemdude/sqlc-gen-java/internal/core"
+	"github.com/tandemdude/sqlc-gen-java/poet"
 )
+
+var connectionClass = poet.NewClassName("java.sql", "Connection")
+var generatedClass = poet.NewClassName("javax.annotation.processing", "Generated")
 
 func resultRecordName(q core.Query) string {
 	return strcase.ToCamel(q.MethodName) + "Row"
@@ -92,7 +94,7 @@ func completeMethodBody(sb *IndentStringBuilder, q core.Query, embeddedModels co
 	case core.Many:
 		jt := resultRecordName(q)
 		if len(q.Returns) == 1 {
-			_, jt, _ = core.ResolveImportAndType(q.Returns[0].JavaType.Type)
+			_, jt, _ = core.ResolveImportAndType(q.Returns[0].JavaType.Type.Name)
 			if q.Returns[0].EmbeddedModel != nil {
 				jt = *q.Returns[0].EmbeddedModel
 			}
@@ -120,176 +122,162 @@ func completeMethodBody(sb *IndentStringBuilder, q core.Query, embeddedModels co
 }
 
 func BuildQueriesFile(engine string, config core.Config, queryFilename string, queries []core.Query, embeddedModels core.EmbeddedModels, nullableHelpers core.NullableHelpers) (string, []byte, error) {
+	ctx := poet.NewContext(
+		config.Package,
+		poet.WithIndent(strings.Repeat(config.IndentChar, config.CharsPerIndentLevel)),
+	)
+
+	var nonNullAnnotation poet.Annotation
+	if config.NonNullAnnotation != "" {
+		lastIndex := strings.LastIndex(config.NonNullAnnotation, ".")
+		pkg := config.NonNullAnnotation[:lastIndex]
+		name := config.NonNullAnnotation[lastIndex+1:]
+
+		nonNullAnnotation = poet.NewAnnotationBuilder(poet.NewClassName(pkg, name)).Build()
+	}
+	var nullableAnnotation poet.Annotation
+	if config.NullableAnnotation != "" {
+		lastIndex := strings.LastIndex(config.NullableAnnotation, ".")
+		pkg := config.NullableAnnotation[:lastIndex]
+		name := config.NullableAnnotation[lastIndex+1:]
+
+		nullableAnnotation = poet.NewAnnotationBuilder(poet.NewClassName(pkg, name)).Build()
+	}
+
 	className := strcase.ToCamel(strings.TrimSuffix(queryFilename, ".sql"))
 	className = strings.TrimSuffix(className, "Query")
 	className = strings.TrimSuffix(className, "Queries")
 	className += "Queries"
 
-	imports := make([]string, 0)
-	imports = append(imports, "java.sql.SQLException", "java.sql.ResultSet", "java.util.Arrays", "javax.annotation.processing.Generated")
+	classBuilder := poet.NewClassBuilder(className).
+		WithAnnotation(
+			poet.NewAnnotationBuilder(generatedClass).
+				WithMember("value", "$S", "io.github.tandemdude.sqlc-gen-java").
+				Build(),
+		).
+		WithModifiers(poet.ModifierPublic).
+		WithFields(poet.ClassField{
+			Name:      "conn",
+			Type:      connectionClass,
+			Modifiers: []poet.Modifier{poet.ModifierPrivate, poet.ModifierFinal},
+		}).
+		WithConstructor(
+			poet.NewConstructorBuilder().
+				WithParameters(poet.NewMethodParam("conn", connectionClass)).
+				WithCode(
+					poet.NewCodeBuilder().
+						WithStatement("this.conn = conn").
+						Build(),
+				).
+				Build(),
+		)
 
-	var nonNullAnnotation string
-	if config.NonNullAnnotation != "" {
-		imports = append(imports, config.NonNullAnnotation)
-		nonNullAnnotation = "@" + config.NonNullAnnotation[strings.LastIndex(config.NonNullAnnotation, ".")+1:]
-	}
-	var nullableAnnotation string
-	if config.NullableAnnotation != "" {
-		imports = append(imports, config.NullableAnnotation)
-		nullableAnnotation = "@" + config.NullableAnnotation[strings.LastIndex(config.NullableAnnotation, ".")+1:]
-	}
-
-	header := NewIndentStringBuilder(config.IndentChar, config.CharsPerIndentLevel)
-	header.writeSqlcHeader()
-	header.WriteString("\n")
-	header.WriteString("package " + config.Package + ";\n")
-	header.WriteString("\n")
-
-	body := NewIndentStringBuilder(config.IndentChar, config.CharsPerIndentLevel)
-	body.WriteString("\n")
-	// Add the class declaration and constructor
-	body.WriteString("@Generated(\"io.github.tandemdude.sqlc-gen-java\")\n")
-	body.WriteString("public class " + className + " {\n")
-	body.WriteIndentedString(1, "private final java.sql.Connection conn;\n\n")
-	body.WriteIndentedString(1, "public "+className+"(java.sql.Connection conn) {\n")
-	body.WriteIndentedString(2, "this.conn = conn;\n")
-	body.WriteIndentedString(1, "}\n")
+	methods := writeNullableHelpers(ctx, nullableHelpers, nonNullAnnotation, nullableAnnotation)
+	var methodBuilder *poet.MethodBuilder
+	var method poet.Method
 
 	if config.ExposeConnection {
-		body.WriteString("\n")
-		body.WriteIndentedString(1, "public java.sql.Connection getConn() {return this.conn;}\n")
+		method = poet.NewMethodBuilder("getConn", connectionClass).
+			WithCode(poet.NewCodeBuilder().
+				WithStatement("return this.conn").
+				Build(),
+			).
+			Build()
+
+		methods = append(methods, method)
 	}
 
-	// boilerplate methods to allow for getting null primitive values
-	body.WriteString("\n")
-
-	imp := body.writeNullableHelpers(nullableHelpers, nonNullAnnotation, nullableAnnotation)
-	imports = append(imports, imp...)
-
 	for _, q := range queries {
-		body.WriteString("\n")
-
-		// write the static attribute containing the query string
-		body.WriteIndentedString(1, "private static final String "+q.MethodName+" = \"\"\"\n")
-		body.WriteIndentedString(2, "-- name: "+q.RawQueryName+" "+q.RawCommand+"\n")
-		// for each line in the query, ensure it is indented correctly
+		queryStrBuilder := NewIndentStringBuilder(config.IndentChar, config.CharsPerIndentLevel)
+		queryStrBuilder.WriteString("\"\"\"\n")
+		queryStrBuilder.WriteIndentedString(1, "-- name: "+q.RawQueryName+" "+q.RawCommand+"\n")
 		for _, part := range strings.Split(q.Text, "\n") {
 			if part == "" {
 				continue
 			}
 
-			body.WriteIndentedString(2, part+"\n")
+			queryStrBuilder.WriteIndentedString(1, part+"\n")
 		}
-		body.WriteIndentedString(2, "\"\"\";\n")
+		queryStrBuilder.WriteIndentedString(1, "\"\"\";")
+
+		classBuilder.WithFields(
+			poet.NewClassFieldBuilder(q.MethodName, poet.String).
+				WithModifiers(poet.ModifierPublic, poet.ModifierStatic, poet.ModifierFinal).
+				WithInitializer(queryStrBuilder.String()).
+				Build(),
+		)
 
 		// write the output record class
-		var returnType string
+		var returnType poet.TypeName
 		if len(q.Returns) > 1 {
-			returnType = resultRecordName(q)
+			recordName := resultRecordName(q)
+			recordBuilder := poet.NewRecordBuilder(recordName)
 
-			body.WriteString("\n")
-			body.WriteIndentedString(1, "public record "+returnType+"(\n")
-			for i, ret := range q.Returns {
-				imps, err := body.writeParameter(ret.JavaType, ret.Name, nonNullAnnotation, nullableAnnotation)
-				if err != nil {
-					return "", nil, err
-				}
-				if imps != nil {
-					imports = append(imports, imps...)
-				}
-
-				if i != len(q.Returns)-1 {
-					body.WriteString(",\n")
-				}
+			// FIXME: Annotations
+			// Look at common.go:writeParameter
+			// , nonNullAnnotation, nullableAnnotation
+			for _, ret := range q.Returns {
+				recordBuilder.WithParameters(poet.NewMethodParam(ret.Name, ret.JavaType.Type))
 			}
-			body.WriteString("\n")
-			body.WriteIndentedString(1, ") {}\n")
+
+			classBuilder.WithMembers(recordBuilder.Build())
+
+			returnType = poet.NewClassName("", recordName)
 		} else if len(q.Returns) == 1 {
 			// the query only outputs a single value, we don't need to wrap it in an xxRow record class
 			ret := q.Returns[0]
 
-			imp, jt, err := core.ResolveImportAndType(ret.JavaType.Type)
-			if err != nil {
-				return "", nil, err
-			}
-			imports = append(imports, imp)
-
 			if ret.JavaType.IsList {
-				imports = append(imports, "java.util.List")
-				jt = "List<" + jt + ">"
+				returnType = poet.ListOf(ret.JavaType.Type)
+			} else {
+				returnType = ret.JavaType.Type
 			}
-
-			returnType = jt
 		}
 
 		// figure out what the return type of the method should be
 		switch q.Command {
 		case core.One:
-			imports = append(imports, "java.util.Optional")
-			returnType = "Optional<" + returnType + ">"
+			returnType = poet.OptionalOf(returnType)
 		case core.Many:
-			imports = append(imports, "java.util.List", "java.util.ArrayList")
-			returnType = "List<" + returnType + ">"
+			returnType = poet.ListOf(returnType)
 		case core.Exec:
-			returnType = "void"
+			returnType = poet.Void
 		case core.ExecRows:
-			returnType = "int"
+			returnType = poet.Int
 		case core.ExecResult:
-			returnType = "long"
+			returnType = poet.Long
 		case core.CopyFrom:
 			return "", []byte{}, errors.New("copyFrom is not currently supported")
 		}
 
-		methodBody := NewIndentStringBuilder(config.IndentChar, config.CharsPerIndentLevel)
+		methodBuilder = poet.NewMethodBuilder(q.MethodName, returnType).WithModifiers(poet.ModifierPublic).WithThrows(sqlExceptionClass)
+		codeBuilder := poet.NewCodeBuilder()
+
 		if q.Command == core.ExecResult {
-			methodBody.WriteIndentedString(2, "var stmt = conn.prepareStatement("+q.MethodName+", java.sql.Statement.RETURN_GENERATED_KEYS);\n")
+			codeBuilder.WithStatement("var stmt = conn.prepareStatement($L, java.sql.Statement.RETURN_GENERATED_KEYS)", q.MethodName)
 		} else {
-			methodBody.WriteIndentedString(2, "var stmt = conn.prepareStatement("+q.MethodName+");\n")
+			codeBuilder.WithStatement("var stmt = conn.prepareStatement($L)", q.MethodName)
 		}
 
-		// write the method signature
-		body.WriteString("\n")
-		body.WriteIndentedString(1, fmt.Sprintf("public %s %s(", returnType, q.MethodName))
-		if len(q.Args) > 0 {
-			body.WriteString("\n")
-
-			for i, arg := range q.Args {
-				imps, err := body.writeParameter(arg.JavaType, arg.Name, nonNullAnnotation, nullableAnnotation)
-				if err != nil {
-					return "", nil, err
-				}
-				if imps != nil {
-					imports = append(imports, imps...)
-				}
-
-				if i != len(q.Args)-1 {
-					body.WriteString(",\n")
-				}
-
-				methodBody.WriteIndentedString(2, arg.BindStmt(engine)+"\n")
-			}
-			body.WriteString("\n")
-			body.WriteIndentedString(1, ") throws SQLException {\n")
-		} else {
-			body.WriteString(") throws SQLException {\n")
+		for _, arg := range q.Args {
+			// FIXME: Annotations
+			// Look at common.go:writeParameter
+			// , nonNullAnnotation, nullableAnnotation
+			methodBuilder.WithParameters(poet.NewMethodParam(arg.Name, arg.JavaType.Type))
+			// FIXME: Make BindStmt take in the code builder
+			codeBuilder.WithRawCode(arg.BindStmt(engine))
 		}
 
-		completeMethodBody(methodBody, q, embeddedModels)
-		body.WriteString(methodBody.String())
-		body.WriteIndentedString(1, "}\n")
-	}
-	body.WriteString("}\n")
+		// FIXME: finish
+		//methodBody := NewIndentStringBuilder(config.IndentChar, config.CharsPerIndentLevel)
+		//completeMethodBody(methodBody, q, embeddedModels)
 
-	// sort alphabetically and remove duplicate imports
-	slices.Sort(imports)
-	imports = slices.Compact(imports)
-	for _, imp := range imports {
-		if imp == "" {
-			continue
-		}
-
-		header.WriteString("import " + imp + ";\n")
+		method = methodBuilder.WithCode(codeBuilder.Build()).Build()
+		methods = append(methods, method)
 	}
 
-	return className + ".java", []byte(header.String() + body.String()), nil
+	classBuilder.WithMethods(methods...)
+
+	fileContents := poet.FormatFile(ctx, classBuilder.Build(), poet.WithFileComment(core.FileHeaderComment))
+	return className + ".java", []byte(fileContents), nil
 }

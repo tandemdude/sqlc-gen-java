@@ -35,8 +35,11 @@ type Method struct {
 func (m Method) Format(ctx *Context) string {
 	var sb strings.Builder
 
-	sb.WriteString(formatModifiers(m.Modifiers))
-	sb.WriteString(" ")
+	if len(m.Modifiers) > 0 {
+		sb.WriteString(formatModifiers(m.Modifiers))
+		sb.WriteString(" ")
+	}
+
 	writeGenericParamList(ctx, &sb, m.GenericParameters, true)
 	if !m.isConstructor {
 		sb.WriteString(m.ReturnType.Format(ctx, ExcludeConstraints))
@@ -116,7 +119,6 @@ func (b *MethodBuilder) WithCode(code Code) *MethodBuilder {
 }
 
 func (b *MethodBuilder) Build() Method {
-	b.method.Modifiers = maybeSetPackagePrivate(b.method.Modifiers)
 	return b.method
 }
 
@@ -153,6 +155,5 @@ func (b *ConstructorBuilder) WithCode(code Code) *ConstructorBuilder {
 }
 
 func (b *ConstructorBuilder) Build() Constructor {
-	b.constructor.Modifiers = maybeSetPackagePrivate(b.constructor.Modifiers)
 	return b.constructor
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/tandemdude/sqlc-gen-java/internal/core"
 	"github.com/tandemdude/sqlc-gen-java/internal/inflection"
 	"github.com/tandemdude/sqlc-gen-java/internal/sqltypes"
+	"github.com/tandemdude/sqlc-gen-java/poet"
 )
 
 var (
@@ -96,7 +97,7 @@ func (gen *JavaGenerator) fixQueryPlaceholders(query string) (string, error) {
 
 func (gen *JavaGenerator) parseQueryReturn(col *plugin.Column) (*core.QueryReturn, error) {
 	isEnum := false
-	strJavaType, err := gen.typeConversionFunc(col.Type)
+	poetType, err := gen.typeConversionFunc(col.Type)
 	if err != nil {
 		schema := col.Table.Schema
 		if schema == "" {
@@ -109,7 +110,7 @@ func (gen *JavaGenerator) parseQueryReturn(col *plugin.Column) (*core.QueryRetur
 		}
 
 		gen.usedEnums = append(gen.usedEnums, enumQualifiedName)
-		strJavaType = gen.conf.Package + ".enums." + codegen.EnumClassName(enumQualifiedName, gen.req.Catalog.DefaultSchema)
+		poetType = poet.NewClassName(gen.conf.Package+".enums", codegen.EnumClassName(enumQualifiedName, gen.req.Catalog.DefaultSchema))
 		isEnum = true
 	}
 
@@ -119,7 +120,7 @@ func (gen *JavaGenerator) parseQueryReturn(col *plugin.Column) (*core.QueryRetur
 
 	javaType := core.JavaType{
 		SqlType:    sdk.DataType(col.Type),
-		Type:       strJavaType,
+		Type:       poetType,
 		IsList:     col.IsArray,
 		IsNullable: !col.NotNull,
 		IsEnum:     isEnum,
@@ -128,8 +129,8 @@ func (gen *JavaGenerator) parseQueryReturn(col *plugin.Column) (*core.QueryRetur
 	if javaType.IsNullable {
 		if javaType.IsList {
 			gen.nullableHelpers.List = true
-		} else {
-			switch strJavaType {
+		} else if poetType.Package == "" {
+			switch poetType.Name {
 			case "Integer":
 				gen.nullableHelpers.Int = true
 			case "Long":
@@ -175,9 +176,9 @@ func (gen *JavaGenerator) Run() (*plugin.GenerateResponse, error) {
 
 		// TODO - enum types? other specialness?
 		args := make([]core.QueryArg, 0)
-		for _, arg := range query.Params {
+		for index, arg := range query.Params {
 			isEnum := false
-			javaType, err := gen.typeConversionFunc(arg.Column.Type)
+			poetType, err := gen.typeConversionFunc(arg.Column.Type)
 			if err != nil {
 				// check if this is an enum type
 				schema := arg.Column.Table.Schema
@@ -191,7 +192,7 @@ func (gen *JavaGenerator) Run() (*plugin.GenerateResponse, error) {
 				}
 
 				gen.usedEnums = append(gen.usedEnums, enumQualifiedName)
-				javaType = gen.conf.Package + ".enums." + codegen.EnumClassName(enumQualifiedName, gen.req.Catalog.DefaultSchema)
+				poetType = poet.NewClassName(gen.conf.Package+".enums", codegen.EnumClassName(enumQualifiedName, gen.req.Catalog.DefaultSchema))
 				isEnum = true
 			}
 
@@ -199,12 +200,17 @@ func (gen *JavaGenerator) Run() (*plugin.GenerateResponse, error) {
 				return nil, fmt.Errorf("multidimensional arrays are not supported, store JSON instead")
 			}
 
+			columnName := arg.Column.Name
+			if columnName == "" {
+				columnName = fmt.Sprintf("column%d", index+1)
+			}
+
 			args = append(args, core.QueryArg{
 				Number: int(arg.Number),
-				Name:   strcase.ToLowerCamel(arg.Column.Name),
+				Name:   strcase.ToLowerCamel(columnName),
 				JavaType: core.JavaType{
 					SqlType:    sdk.DataType(arg.Column.Type),
-					Type:       javaType,
+					Type:       poetType,
 					IsList:     arg.Column.IsArray,
 					IsNullable: !arg.Column.NotNull,
 					IsEnum:     isEnum,
@@ -277,7 +283,7 @@ func (gen *JavaGenerator) Run() (*plugin.GenerateResponse, error) {
 				JavaType: core.JavaType{
 					SqlType: "",
 					// we don't need to specify package here - models file will be generated in the same location as the queries file
-					Type:       gen.conf.Package + ".models." + modelName,
+					Type:       poet.NewClassName(gen.conf.Package+".models", modelName),
 					IsList:     false, // TODO - check: this *should* be impossible
 					IsNullable: false, // TODO - check: empty record should be output instead
 				},

@@ -9,6 +9,7 @@ import (
 
 	"github.com/iancoleman/strcase"
 	"github.com/tandemdude/sqlc-gen-java/internal/core"
+	"github.com/tandemdude/sqlc-gen-java/poet"
 )
 
 var javaInvalidIdentChars = regexp.MustCompile("[^$\\w]")
@@ -30,47 +31,56 @@ func enumValueName(value string) string {
 	return name
 }
 
-func BuildEnumFile(engine string, conf core.Config, qualName string, enum core.Enum, defaultSchema string) (string, []byte, error) {
-	className := EnumClassName(qualName, defaultSchema)
+func BuildEnumFile(engine string, config core.Config, qualName string, enum core.Enum, defaultSchema string) (string, []byte, error) {
+	ctx := poet.NewContext(
+		config.Package+".models",
+		poet.WithIndent(strings.Repeat(config.IndentChar, config.CharsPerIndentLevel)),
+	)
 
-	sb := IndentStringBuilder{indentChar: conf.IndentChar, charsPerIndentLevel: conf.CharsPerIndentLevel}
-	sb.writeSqlcHeader()
-	sb.WriteString("\n")
-	sb.WriteString("package " + conf.Package + ".enums;\n")
-	sb.WriteString("\n")
-	sb.WriteString("import javax.annotation.processing.Generated;\n")
-	sb.WriteString("\n")
-	sb.WriteString("@Generated(\"io.github.tandemdude.sqlc-gen-java\")\n")
-	sb.WriteString("public enum " + className + " {\n")
+	enumName := EnumClassName(qualName, defaultSchema)
+
+	enumBuilder := poet.NewEnumBuilder(enumName).
+		WithAnnotation(
+			poet.NewAnnotationBuilder(generatedClass).
+				WithMember("value", "$S", "io.github.tandemdude.sqlc-gen-java").
+				Build(),
+		).
+		WithModifiers(poet.ModifierPublic)
 
 	if engine == "mysql" {
-		sb.WriteIndentedString(1, "BLANK(\"\"),\n")
+		enumBuilder.WithValue("BLANK", "")
 	}
 
 	// write other values
-	for i, value := range enum.Values {
-		name := enumValueName(value)
-		sb.WriteIndentedString(1, fmt.Sprintf("%s(\"%s\")", name, value))
-
-		if i < len(enum.Values)-1 {
-			sb.WriteString(",\n")
-		}
+	for _, value := range enum.Values {
+		enumBuilder.WithValue(enumValueName(value), value)
 	}
-	sb.WriteString(";\n\n")
-	sb.WriteIndentedString(1, "private final String value;\n\n")
-	sb.WriteIndentedString(1, className+"(final String value) {\n")
-	sb.WriteIndentedString(2, "this.value = value;\n")
-	sb.WriteIndentedString(1, "}\n\n")
-	sb.WriteIndentedString(1, "public String getValue() {\n")
-	sb.WriteIndentedString(2, "return this.value;")
-	sb.WriteIndentedString(1, "}\n\n")
-	sb.WriteIndentedString(1, "public static "+className+" fromValue(final String value) {\n")
-	sb.WriteIndentedString(2, "for (var v : "+className+".values()) {\n")
-	sb.WriteIndentedString(3, "if (v.value.equals(value)) return v;\n")
-	sb.WriteIndentedString(2, "}\n")
-	sb.WriteIndentedString(2, "throw new IllegalArgumentException(\"No enum constant with value \" + value);\n")
-	sb.WriteIndentedString(1, "}\n")
-	sb.WriteString("}\n")
 
-	return fmt.Sprintf("enums/%s.java", className), []byte(sb.String()), nil
+	enumType := poet.NewClassName("", enumName)
+
+	enumBuilder.WithMethods(
+		poet.NewMethodBuilder("getValue", poet.String).
+			WithCode(
+				poet.NewCodeBuilder().
+					WithStatement("return this.value").
+					Build(),
+			).
+			Build(),
+
+		poet.NewMethodBuilder("fromValue", enumType).
+			// FIXME: Make value final String (?)
+			WithParameters(poet.NewMethodParam("value", poet.String)).
+			WithCode(
+				poet.NewCodeBuilder().
+					WithControlFlow("for (var v : $T.values())", func(cb *poet.CodeBuilder) {
+						cb.WithRawCode("if (v.value.equals(value)) return v;")
+					}, enumType).
+					WithStatement(`throw new IllegalArgumentException("No enum constant with value " + value)`).
+					Build(),
+			).
+			Build(),
+	)
+
+	fileContents := poet.FormatFile(ctx, enumBuilder.Build(), poet.WithFileComment(core.FileHeaderComment))
+	return fmt.Sprintf("enums/%s.java", enumName), []byte(fileContents), nil
 }

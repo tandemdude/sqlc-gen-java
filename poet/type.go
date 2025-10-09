@@ -5,22 +5,67 @@ import (
 	"strings"
 )
 
-// TODO - annotation support
-
 type ClassField struct {
-	Name      string
-	Type      TypeName
-	Modifiers []Modifier
+	Name           string
+	Type           TypeName
+	Initializer    Code
+	Modifiers      []Modifier
+	HasInitializer bool
+}
+
+func (c ClassField) Format(ctx *Context) string {
+	if !c.HasInitializer {
+		return fmt.Sprintf(
+			"%s %s %s;",
+			formatModifiers(c.Modifiers),
+			c.Type.Format(ctx, ExcludeConstraints),
+			c.Name,
+		)
+	}
+
+	return fmt.Sprintf(
+		"%s %s %s = %s",
+		formatModifiers(c.Modifiers),
+		c.Type.Format(ctx, ExcludeConstraints),
+		c.Name,
+		c.Initializer.Format(ctx),
+	)
+}
+
+type ClassFieldBuilder struct {
+	classField ClassField
+}
+
+func NewClassFieldBuilder(name string, class TypeName) *ClassFieldBuilder {
+	return &ClassFieldBuilder{classField: ClassField{Name: name, Type: class}}
+}
+
+func (b *ClassFieldBuilder) WithModifiers(modifiers ...Modifier) *ClassFieldBuilder {
+	b.classField.Modifiers = append(b.classField.Modifiers, modifiers...)
+	return b
+}
+
+func (b *ClassFieldBuilder) WithInitializer(code string, args ...any) *ClassFieldBuilder {
+	b.classField.HasInitializer = true
+	b.classField.Initializer = Code{RawCode: code, Arguments: args}
+	return b
+}
+
+func (b *ClassFieldBuilder) Build() ClassField {
+	return b.classField
 }
 
 type Class struct {
 	Name string
 
+	Annotations       []Annotation
 	Modifiers         []Modifier
 	GenericParameters []TypeName
 	Constructor       *Constructor
 	Fields            []ClassField
 	Methods           []Method
+	Members           []formattable
+	// FIXME: Idk if formattable is ideal here
 }
 
 func (c Class) name() string {
@@ -29,6 +74,11 @@ func (c Class) name() string {
 
 func (c Class) Format(ctx *Context) string {
 	var sb strings.Builder
+
+	for _, annotation := range c.Annotations {
+		sb.WriteString(annotation.Format(ctx))
+		sb.WriteRune('\n')
+	}
 
 	sb.WriteString(formatModifiers(c.Modifiers))
 	if sb.Len() > 0 {
@@ -40,17 +90,14 @@ func (c Class) Format(ctx *Context) string {
 	writeGenericParamList(ctx, &sb, c.GenericParameters, false)
 	sb.WriteString(" {\n")
 
-	for i, field := range c.Fields {
-		sb.WriteString(ctx.indent(fmt.Sprintf(
-			"%s %s %s;\n",
-			formatModifiers(field.Modifiers),
-			field.Type.Format(ctx, ExcludeConstraints),
-			field.Name,
-		)))
+	for _, field := range c.Fields {
+		sb.WriteString(ctx.indent(field.Format(ctx)))
+		sb.WriteString("\n\n")
+	}
 
-		if i == len(c.Fields)-1 {
-			sb.WriteString("\n")
-		}
+	for _, method := range c.Members {
+		sb.WriteString(ctx.indent(method.Format(ctx)))
+		sb.WriteString("\n\n")
 	}
 
 	if c.Constructor != nil {
@@ -83,6 +130,11 @@ func NewClassBuilder(name string) *ClassBuilder {
 	return &ClassBuilder{class: Class{Name: name}}
 }
 
+func (c *ClassBuilder) WithAnnotation(annotations ...Annotation) *ClassBuilder {
+	c.class.Annotations = append(c.class.Annotations, annotations...)
+	return c
+}
+
 func (c *ClassBuilder) WithModifiers(modifiers ...Modifier) *ClassBuilder {
 	c.class.Modifiers = appendModifiers(c.class.Modifiers, modifiers)
 	return c
@@ -108,8 +160,12 @@ func (c *ClassBuilder) WithMethods(methods ...Method) *ClassBuilder {
 	return c
 }
 
+func (c *ClassBuilder) WithMembers(members ...formattable) *ClassBuilder {
+	c.class.Members = append(c.class.Members, members...)
+	return c
+}
+
 func (c *ClassBuilder) Build() Class {
-	c.class.Modifiers = maybeSetPackagePrivate(c.class.Modifiers)
 	return c.class
 }
 
@@ -126,9 +182,10 @@ func NewEnumValue(name string, value string) EnumValue {
 type Enum struct {
 	Name string
 
-	Modifiers []Modifier
-	Values    []EnumValue
-	Methods   []Method
+	Modifiers   []Modifier
+	Values      []EnumValue
+	Methods     []Method
+	Annotations []Annotation
 }
 
 func (e Enum) name() string {
@@ -137,6 +194,11 @@ func (e Enum) name() string {
 
 func (e Enum) Format(ctx *Context) string {
 	var sb strings.Builder
+
+	for _, annotation := range e.Annotations {
+		sb.WriteString(annotation.Format(ctx))
+		sb.WriteRune('\n')
+	}
 
 	sb.WriteString(formatModifiers(e.Modifiers))
 	if sb.Len() > 0 {
@@ -186,6 +248,11 @@ func NewEnumBuilder(name string) *EnumBuilder {
 	return &EnumBuilder{enum: Enum{Name: name}}
 }
 
+func (b *EnumBuilder) WithAnnotation(annotations ...Annotation) *EnumBuilder {
+	b.enum.Annotations = append(b.enum.Annotations, annotations...)
+	return b
+}
+
 func (b *EnumBuilder) WithModifiers(modifiers ...Modifier) *EnumBuilder {
 	b.enum.Modifiers = appendModifiers(b.enum.Modifiers, modifiers)
 	return b
@@ -207,16 +274,16 @@ func (b *EnumBuilder) WithMethods(methods ...Method) *EnumBuilder {
 }
 
 func (b *EnumBuilder) Build() Enum {
-	b.enum.Modifiers = maybeSetPackagePrivate(b.enum.Modifiers)
 	return b.enum
 }
 
 type Record struct {
 	Name string
 
-	Modifiers  []Modifier
-	Parameters []MethodParameter
-	Methods    []Method
+	Annotations []Annotation
+	Modifiers   []Modifier
+	Parameters  []MethodParameter
+	Methods     []Method
 }
 
 func (r Record) name() string {
@@ -225,6 +292,11 @@ func (r Record) name() string {
 
 func (r Record) Format(ctx *Context) string {
 	var sb strings.Builder
+
+	for _, annotation := range r.Annotations {
+		sb.WriteString(annotation.Format(ctx))
+		sb.WriteRune('\n')
+	}
 
 	sb.WriteString(formatModifiers(r.Modifiers))
 	if sb.Len() > 0 {
@@ -270,6 +342,11 @@ func NewRecordBuilder(name string) *RecordBuilder {
 	return &RecordBuilder{record: Record{Name: name}}
 }
 
+func (b *RecordBuilder) WithAnnotation(annotations ...Annotation) *RecordBuilder {
+	b.record.Annotations = append(b.record.Annotations, annotations...)
+	return b
+}
+
 func (b *RecordBuilder) WithModifiers(modifiers ...Modifier) *RecordBuilder {
 	b.record.Modifiers = appendModifiers(b.record.Modifiers, modifiers)
 	return b
@@ -286,6 +363,5 @@ func (b *RecordBuilder) WithMethods(methods ...Method) *RecordBuilder {
 }
 
 func (b *RecordBuilder) Build() Record {
-	b.record.Modifiers = maybeSetPackagePrivate(b.record.Modifiers)
 	return b.record
 }

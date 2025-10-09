@@ -2,65 +2,53 @@ package codegen
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/iancoleman/strcase"
 	"github.com/tandemdude/sqlc-gen-java/internal/core"
+	"github.com/tandemdude/sqlc-gen-java/poet"
 )
 
 func BuildModelFile(config core.Config, name string, model []core.QueryReturn) (string, []byte, error) {
-	imports := make([]string, 0)
+	ctx := poet.NewContext(
+		config.Package+".models",
+		poet.WithIndent(strings.Repeat(config.IndentChar, config.CharsPerIndentLevel)),
+	)
 
-	var nonNullAnnotation string
-	if config.NonNullAnnotation != "" {
-		imports = append(imports, config.NonNullAnnotation)
-		nonNullAnnotation = "@" + config.NonNullAnnotation[strings.LastIndex(config.NonNullAnnotation, ".")+1:]
-	}
-	var nullableAnnotation string
-	if config.NullableAnnotation != "" {
-		imports = append(imports, config.NullableAnnotation)
-		nullableAnnotation = "@" + config.NullableAnnotation[strings.LastIndex(config.NullableAnnotation, ".")+1:]
-	}
+	//var nonNullAnnotation poet.Annotation
+	//if config.NonNullAnnotation != "" {
+	//	lastIndex := strings.LastIndex(config.NonNullAnnotation, ".")
+	//	pkg := config.NonNullAnnotation[:lastIndex]
+	//	name := config.NonNullAnnotation[lastIndex+1:]
+	//
+	//	nonNullAnnotation = poet.NewAnnotationBuilder(poet.NewClassName(pkg, name)).Build()
+	//}
+	//var nullableAnnotation poet.Annotation
+	//if config.NullableAnnotation != "" {
+	//	lastIndex := strings.LastIndex(config.NullableAnnotation, ".")
+	//	pkg := config.NullableAnnotation[:lastIndex]
+	//	name := config.NullableAnnotation[lastIndex+1:]
+	//
+	//	nullableAnnotation = poet.NewAnnotationBuilder(poet.NewClassName(pkg, name)).Build()
+	//}
 
-	header := NewIndentStringBuilder(config.IndentChar, config.CharsPerIndentLevel)
-	header.writeSqlcHeader()
-	header.WriteString("\n")
-	header.WriteString("package " + config.Package + ".models;\n")
-	header.WriteString("\n")
-	header.WriteString("import javax.annotation.processing.Generated;\n")
-	header.WriteString("\n")
+	recordName := strcase.ToCamel(name)
 
-	body := NewIndentStringBuilder(config.IndentChar, config.CharsPerIndentLevel)
-	body.WriteString("\n")
-	body.WriteString("@Generated(\"io.github.tandemdude.sqlc-gen-java\")\n")
-	body.WriteString("public record " + strcase.ToCamel(name) + "(\n")
-	for i, ret := range model {
-		imps, err := body.writeParameter(ret.JavaType, ret.Name, nonNullAnnotation, nullableAnnotation)
-		if err != nil {
-			return "", nil, err
-		}
-		if imps != nil {
-			imports = append(imports, imps...)
-		}
+	recordBuilder := poet.NewRecordBuilder(recordName).
+		WithAnnotation(
+			poet.NewAnnotationBuilder(generatedClass).
+				WithMember("value", "$S", "io.github.tandemdude.sqlc-gen-java").
+				Build(),
+		).
+		WithModifiers(poet.ModifierPublic)
 
-		if i != len(model)-1 {
-			body.WriteString(",\n")
-		}
-	}
-	body.WriteString("\n")
-	body.WriteString(") {}\n")
-
-	// sort alphabetically and remove duplicate imports
-	slices.Sort(imports)
-	imports = slices.Compact(imports)
-	for _, imp := range imports {
-		if imp == "" {
-			continue
-		}
-
-		header.WriteString("import " + imp + ";\n")
+	for _, ret := range model {
+		// FIXME: Annotations
+		// Look at common.go:writeParameter
+		// , nonNullAnnotation, nullableAnnotation
+		recordBuilder.WithParameters(poet.NewMethodParam(ret.Name, ret.JavaType.Type))
 	}
 
-	return fmt.Sprintf("models/%s.java", strcase.ToCamel(name)), []byte(header.String() + body.String()), nil
+	fileContents := poet.FormatFile(ctx, recordBuilder.Build(), poet.WithFileComment(core.FileHeaderComment))
+	return fmt.Sprintf("models/%s.java", recordName), []byte(fileContents), nil
 }

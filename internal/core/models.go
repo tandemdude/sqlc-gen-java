@@ -3,7 +3,8 @@ package core
 import (
 	"fmt"
 	"slices"
-	"strings"
+
+	"github.com/tandemdude/sqlc-gen-java/poet"
 )
 
 type QueryCommand int
@@ -36,9 +37,10 @@ func QueryCommandFor(rawCommand string) (QueryCommand, error) {
 	}
 }
 
+// FIXME: I think JavaType can be simplified to poet.TypeName
 type JavaType struct {
 	SqlType    string
-	Type       string
+	Type       poet.TypeName
 	IsList     bool
 	IsNullable bool
 	IsEnum     bool
@@ -70,7 +72,7 @@ var typeToJavaSqlTypeConst = map[string]string{
 }
 
 func (q QueryArg) BindStmt(engine string) string {
-	typeOnly := q.JavaType.Type[strings.LastIndex(q.JavaType.Type, ".")+1:]
+	typeOnly := q.JavaType.Type.Name
 
 	if q.JavaType.IsList {
 		if q.JavaType.IsNullable {
@@ -126,7 +128,7 @@ type QueryReturn struct {
 }
 
 func (q QueryReturn) ResultStmt(number int) string {
-	typeOnly := q.JavaType.Type[strings.LastIndex(q.JavaType.Type, ".")+1:]
+	typeOnly := q.JavaType.Type.Name
 
 	if q.JavaType.IsList {
 		if q.JavaType.IsNullable {
