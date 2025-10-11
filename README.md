@@ -17,7 +17,7 @@ A WASM plugin for SQLC allowing the generation of Java code.
 | `package`                        | string   | yes      | The name of the package where the generated files will be located.                                                                        |
 | `emit_exact_table_names`         | boolean  | no       | Whether table names will not be forced to singular form when generating the models. Defaults to `false`.                                  |
 | `inflection_exclude_table_names` | []string | no       | Table names to be excluded from being forced into singular form when generating the models.                                               |
-| `query_parameter_limit`          | integer  | no       | not yet implemented                                                                                                                       |
+| `query_parameter_limit`          | integer  | no       |  The max number of query parameters allowed before automatically generating a data model for method input.                                                                                                                      |
 | `indent_char`                    | string   | no       | The character to use to indent the code. Defaults to space `" "`.                                                                         |
 | `chars_per_indent_level`         | integer  | no       | The number of characters per indent level. Defaults to `4`.                                                                               |
 | `nullable_annotation`            | string   | no       | The full import path for the nullable annotation to use. Defaults to `org.jspecify.annotations.Nullable`. Set to empty string to disable. |
