@@ -188,3 +188,49 @@ var (
 	MapOf  = newTwoParameterType("java.util", "Map")
 	SetOf  = newSingleParameterType("java.util", "Set")
 )
+
+func (t TypeName) Boxed() TypeName {
+	if t.Equals(Bool) {
+		return BoolBoxed
+	} else if t.Equals(Byte) {
+		return ByteBoxed
+	} else if t.Equals(Char) {
+		return CharBoxed
+	} else if t.Equals(DoubleBoxed) {
+		return DoubleBoxed
+	} else if t.Equals(FloatBoxed) {
+		return FloatBoxed
+	} else if t.Equals(IntBoxed) {
+		return IntBoxed
+	} else if t.Equals(LongBoxed) {
+		return LongBoxed
+	} else if t.Equals(ShortBoxed) {
+		return ShortBoxed
+	} else if t.Equals(VoidBoxed) {
+		return VoidBoxed
+	}
+	return t
+}
+
+func (t TypeName) Unboxed() TypeName {
+	if t.Equals(BoolBoxed) {
+		return Bool
+	} else if t.Equals(ByteBoxed) {
+		return Byte
+	} else if t.Equals(CharBoxed) {
+		return Char
+	} else if t.Equals(DoubleBoxed) {
+		return Double
+	} else if t.Equals(FloatBoxed) {
+		return Float
+	} else if t.Equals(IntBoxed) {
+		return Int
+	} else if t.Equals(LongBoxed) {
+		return Long
+	} else if t.Equals(ShortBoxed) {
+		return Short
+	} else if t.Equals(VoidBoxed) {
+		return Void
+	}
+	return t
+}

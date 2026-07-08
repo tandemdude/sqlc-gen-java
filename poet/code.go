@@ -15,7 +15,9 @@ const (
 var stringFormatRegex = regexp.MustCompile(`\${1,2}\d*[LST]`)
 
 type Code struct {
-	RawCode    string
+	RawCode string
+
+	IsRaw      bool
 	IsFlow     bool
 	IsTryCatch bool
 	IsIfElse   bool
@@ -80,10 +82,10 @@ func shouldInlineNextStmt(stmt Code, nextStmt Code) bool {
 		return false
 	}
 
-	if stmt.IsIfElse {
-		return nextStmt.IsIfElse && !strings.HasPrefix(nextStmt.RawCode, "if")
-	} else if stmt.IsTryCatch {
-		return nextStmt.IsTryCatch && !strings.HasPrefix(nextStmt.RawCode, "try")
+	if stmt.IsIfElse && nextStmt.IsIfElse {
+		return !strings.HasPrefix(nextStmt.RawCode, "if")
+	} else if stmt.IsTryCatch && nextStmt.IsTryCatch {
+		return !strings.HasPrefix(nextStmt.RawCode, "try")
 	}
 
 	return false
@@ -118,18 +120,20 @@ func (c *Code) Format(ctx *Context) string {
 		return sb.String()
 	}
 
-	if c.RawCode != "" && !c.IsFlow {
-		// Simple statement
-		sb.WriteString(formatRawCode(ctx, c.RawCode, c.Arguments))
-		if !strings.HasSuffix(c.RawCode, ";") {
-			sb.WriteRune(';')
-		}
-
+	if c.RawCode == "" {
+		sb.WriteString(formatStatements(ctx, c.Statements))
 		return sb.String()
 	}
 
-	// List of statements
-	sb.WriteString(formatStatements(ctx, c.Statements))
+	if c.IsRaw {
+		sb.WriteString(c.RawCode)
+		return sb.String()
+	}
+
+	sb.WriteString(formatRawCode(ctx, c.RawCode, c.Arguments))
+	if !strings.HasSuffix(c.RawCode, ";") {
+		sb.WriteRune(';')
+	}
 
 	return sb.String()
 }
@@ -165,8 +169,8 @@ func (b *CodeBuilder) WithControlFlow(stmt string, blockBuilderFn func(*CodeBuil
 	return b
 }
 
-func (b *CodeBuilder) WithRawCode(code string) *CodeBuilder {
-	b.code.Statements = append(b.code.Statements, Code{RawCode: code})
+func (b *CodeBuilder) WithCode(code string) *CodeBuilder {
+	b.code.Statements = append(b.code.Statements, Code{RawCode: code, IsRaw: true})
 	return b
 }
 
